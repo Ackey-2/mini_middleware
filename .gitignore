@@ -1,0 +1,30 @@
+# Build directories
+build/
+cmake-build-*/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+
+# Compiled
+*.o
+*.a
+*.so
+*.so.*
+*.exe
+
+# Protobuf 自动生成(我们让 cmake 每次重新生成,不入库)
+*.pb.h
+*.pb.cc
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Shared memory cleanup(开发时容易残留)
+/dev/shm/mini_*
