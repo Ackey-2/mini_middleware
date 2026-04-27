@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package mm;
+
+// 简单字符串消息,调试用
+message StringMsg {
+    string data = 1;
+}
+
+// 后面项目可能用的复杂消息(机器人场景)
+message Point3D {
+    float x = 1;
+    float y = 2;
+    float z = 3;
+}
+
+message PointCloud {
+    double timestamp = 1;
+    string frame_id = 2;
+    repeated Point3D points = 3;
+}

@@ -7,8 +7,9 @@
 file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/placeholder.cpp "// auto-generated\n")
 
 # 把这个模块编译成静态库,名字叫 mm_common("mm" = mini_middleware 的缩写)
+
 add_library(mm_common STATIC
-    ${CMAKE_CURRENT_BINARY_DIR}/placeholder.cpp
+    src/logger.cpp
 )
 
 # 这个模块的 include 路径
@@ -21,3 +22,4 @@ target_include_directories(mm_common PUBLIC
 target_link_libraries(mm_common PUBLIC
     Threads::Threads
 )
+
