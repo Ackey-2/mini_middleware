@@ -4,6 +4,8 @@ file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/placeholder.cpp "// auto-generated\n")
 
 add_library(mm_transport STATIC
     src/frame_codec.cpp
+    src/tcp_server_transport.cpp
+    src/tcp_client_transport.cpp  
 )
 target_include_directories(mm_transport PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
