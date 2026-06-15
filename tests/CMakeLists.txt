@@ -15,6 +15,13 @@ if(GTest_FOUND)
         GTest::gtest_main
     )
     add_test(NAME test_local_bus COMMAND test_local_bus)
+
+    add_executable(test_subscriber test_subscriber.cpp)
+    target_link_libraries(test_subscriber PRIVATE
+        mm_core
+        GTest::gtest_main
+    )
+    add_test(NAME test_subscriber COMMAND test_subscriber)
 else()
     message(WARNING "gtest not found, skipping tests")
 endif()
