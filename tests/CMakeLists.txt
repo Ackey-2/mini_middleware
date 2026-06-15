@@ -43,6 +43,13 @@ if(GTest_FOUND)
         GTest::gtest_main
     )
     add_test(NAME test_discovery_proto COMMAND test_discovery_proto)
+
+    add_executable(test_udp_multicast test_udp_multicast.cpp)
+    target_link_libraries(test_udp_multicast PRIVATE
+        mm_discovery
+        GTest::gtest_main
+    )
+    add_test(NAME test_udp_multicast COMMAND test_udp_multicast)
 else()
     message(WARNING "gtest not found, skipping tests")
 endif()
