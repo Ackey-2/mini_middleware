@@ -51,6 +51,8 @@ public:
     DiscoveryAgent& discovery() { return *discovery_; }
 
 private:
+    // 成员析构顺序(声明逆序):entities_ 先析构(Subscriber 停线程)→ discovery_
+    // (停发现线程,结束在途回调)→ bus_ 最后。顺序不可随意调换。
     std::string name_;
     std::shared_ptr<LocalBus> bus_;
     std::unique_ptr<DiscoveryAgent> discovery_;

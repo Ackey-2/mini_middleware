@@ -37,8 +37,8 @@ public:
     void add_endpoint(EndpointInfo::Kind kind, const std::string& topic,
                       const std::string& type_name);
 
-    // 注册匹配/解除匹配回调。须在 start() 前设置(start 后后台线程会读取,
-    // 之后再改存在数据竞争)。回调在后台线程触发。
+    // 注册匹配/解除匹配回调。可在 start() 前或后随时设置——访问由 cb_mtx_ 同步,
+    // 无数据竞争。回调在后台线程触发。
     void on_match(MatchCallback cb);
     void on_unmatch(MatchCallback cb);
 
@@ -75,6 +75,7 @@ private:
     std::map<uint64_t, Remote> remotes_;
     std::map<std::string, MatchInfo> active_matches_;      // key → match
 
+    std::mutex cb_mtx_;                                      // 保护 on_match_ / on_unmatch_
     MatchCallback on_match_;
     MatchCallback on_unmatch_;
 

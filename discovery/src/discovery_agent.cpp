@@ -34,8 +34,14 @@ void DiscoveryAgent::add_endpoint(EndpointInfo::Kind kind, const std::string& to
     local_endpoints_.push_back(std::move(e));
 }
 
-void DiscoveryAgent::on_match(MatchCallback cb) { on_match_ = std::move(cb); }
-void DiscoveryAgent::on_unmatch(MatchCallback cb) { on_unmatch_ = std::move(cb); }
+void DiscoveryAgent::on_match(MatchCallback cb) {
+    std::lock_guard<std::mutex> lock(cb_mtx_);
+    on_match_ = std::move(cb);
+}
+void DiscoveryAgent::on_unmatch(MatchCallback cb) {
+    std::lock_guard<std::mutex> lock(cb_mtx_);
+    on_unmatch_ = std::move(cb);
+}
 
 void DiscoveryAgent::set_timing(std::chrono::milliseconds announce_interval,
                                 std::chrono::milliseconds liveliness_timeout) {
@@ -117,7 +123,12 @@ void DiscoveryAgent::handle_announcement(const ParticipantAnnouncement& ann) {
         std::string key = match_key(m);
         if (active_matches_.find(key) == active_matches_.end()) {
             active_matches_[key] = m;
-            if (on_match_) on_match_(m);
+            MatchCallback cb;
+            {
+                std::lock_guard<std::mutex> lock(cb_mtx_);
+                cb = on_match_;
+            }
+            if (cb) cb(m);
         }
     }
 }
@@ -129,7 +140,12 @@ void DiscoveryAgent::reap_dead() {
             uint64_t dead_id = it->first;
             for (auto mit = active_matches_.begin(); mit != active_matches_.end();) {
                 if (mit->second.remote_participant_id == dead_id) {
-                    if (on_unmatch_) on_unmatch_(mit->second);
+                    MatchCallback cb;
+                    {
+                        std::lock_guard<std::mutex> lock(cb_mtx_);
+                        cb = on_unmatch_;
+                    }
+                    if (cb) cb(mit->second);
                     mit = active_matches_.erase(mit);
                 } else {
                     ++mit;
