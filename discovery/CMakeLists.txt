@@ -1,6 +1,7 @@
 # discovery 模块:UDP 多播服务发现
 add_library(mm_discovery STATIC
     src/udp_multicast.cpp
+    src/endpoint_matcher.cpp
 )
 
 target_include_directories(mm_discovery PUBLIC
