@@ -12,7 +12,7 @@
 
 **Build & test commands used throughout:**
 - Build one target: `cmake --build build -j --target <name>` (auto-reconfigures when a `CMakeLists.txt` changes)
-- Run one test: `ctest --test-dir build -R <name> --output-on-failure`
+- Run one test: `cd build && ctest -R <name> --output-on-failure`
 - Build everything: `cmake --build build -j`
 
 > **C++ TDD note:** In C++ the "RED" state is usually a **compile or link error** (the class/method doesn't exist yet), not a runtime assertion failure. That counts as a failing test here. Each task writes the test first, builds it to see it fail, then implements.
@@ -286,7 +286,7 @@ target_link_libraries(mm_core PUBLIC
 
 - [ ] **Step 6: Build and run the test — expect PASS**
 
-Run: `cmake --build build -j --target test_local_bus && ctest --test-dir build -R test_local_bus --output-on-failure`
+Run: `cmake --build build -j --target test_local_bus && cd build && ctest -R test_local_bus --output-on-failure`
 Expected: PASS — 5 tests pass. The `RejectsTypeMismatch` test will also print a red `LOG_ERROR` line; that is expected output, not a failure.
 
 - [ ] **Step 7: Commit**
@@ -459,7 +459,7 @@ private:
 
 - [ ] **Step 4: Build and run the test — expect PASS**
 
-Run: `cmake --build build -j --target test_subscriber && ctest --test-dir build -R test_subscriber --output-on-failure`
+Run: `cmake --build build -j --target test_subscriber && cd build && ctest -R test_subscriber --output-on-failure`
 Expected: PASS — 3 tests pass.
 
 - [ ] **Step 5: Commit**
@@ -615,7 +615,7 @@ target_link_libraries(publisher_demo PRIVATE mm_core mm_proto)
 
 - [ ] **Step 5: Build and run the test — expect PASS**
 
-Run: `cmake --build build -j --target test_publisher && ctest --test-dir build -R test_publisher --output-on-failure`
+Run: `cmake --build build -j --target test_publisher && cd build && ctest -R test_publisher --output-on-failure`
 Expected: PASS — 2 tests pass.
 
 - [ ] **Step 6: Commit**
@@ -786,7 +786,7 @@ add_library(mm_core STATIC
 
 - [ ] **Step 6: Build and run the test — expect PASS**
 
-Run: `cmake --build build -j --target test_node && ctest --test-dir build -R test_node --output-on-failure`
+Run: `cmake --build build -j --target test_node && cd build && ctest -R test_node --output-on-failure`
 Expected: PASS — 1 test passes.
 
 - [ ] **Step 7: Commit**
@@ -861,7 +861,7 @@ Expected: 5 `[pub] sent: hello N` lines, and for each, one `[sub1] got: hello N`
 
 - [ ] **Step 4: Run the full build and test suite — everything green**
 
-Run: `cmake --build build -j && ctest --test-dir build --output-on-failure`
+Run: `cmake --build build -j && cd build && ctest --output-on-failure`
 Expected: PASS — `test_frame_codec`, `test_local_bus`, `test_subscriber`, `test_publisher`, `test_node` all pass.
 
 - [ ] **Step 5: Commit**
