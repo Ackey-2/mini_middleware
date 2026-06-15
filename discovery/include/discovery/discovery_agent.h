@@ -37,6 +37,8 @@ public:
     void add_endpoint(EndpointInfo::Kind kind, const std::string& topic,
                       const std::string& type_name);
 
+    // 注册匹配/解除匹配回调。须在 start() 前设置(start 后后台线程会读取,
+    // 之后再改存在数据竞争)。回调在后台线程触发。
     void on_match(MatchCallback cb);
     void on_unmatch(MatchCallback cb);
 

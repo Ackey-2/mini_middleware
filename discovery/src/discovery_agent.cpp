@@ -44,6 +44,7 @@ void DiscoveryAgent::set_timing(std::chrono::milliseconds announce_interval,
 }
 
 bool DiscoveryAgent::start() {
+    if (running_.load()) return true;     // 已启动,幂等
     if (!mc_.open()) {
         LOG_ERROR("discovery: multicast open failed for node {}", node_name_);
         return false;
