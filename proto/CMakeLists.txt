@@ -6,6 +6,7 @@
 # 找 protobuf(顶层 CMakeLists 已经 find_package 过)
 set(PROTO_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/messages.proto
+    ${CMAKE_CURRENT_SOURCE_DIR}/discovery.proto
 )
 
 # CMake 内置函数:接收 .proto 文件列表,生成 .pb.h/.pb.cc
