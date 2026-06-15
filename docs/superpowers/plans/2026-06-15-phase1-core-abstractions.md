@@ -566,7 +566,7 @@ class Publisher {
 public:
     Publisher(std::string topic, std::shared_ptr<LocalBus> bus)
         : topic_(std::move(topic)),
-          type_name_(MessageT::GetDescriptor()->full_name()),
+          type_name_(MessageT().GetDescriptor()->full_name()),  // 实例方法,非静态
           bus_(std::move(bus)) {
         bus_->register_publisher(topic_, type_name_);
         LOG_INFO("Publisher created: topic={} type={}", topic_, type_name_);
@@ -739,7 +739,7 @@ public:
     std::shared_ptr<Subscriber<T>> create_subscriber(
         const std::string& topic, typename Subscriber<T>::Callback cb) {
         auto sub = std::make_shared<Subscriber<T>>(topic, std::move(cb));
-        bus_->subscribe(topic, T::GetDescriptor()->full_name(), sub);
+        bus_->subscribe(topic, T().GetDescriptor()->full_name(), sub);  // 实例方法,非静态
         entities_.push_back(sub);
         return sub;
     }

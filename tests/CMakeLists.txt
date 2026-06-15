@@ -22,6 +22,13 @@ if(GTest_FOUND)
         GTest::gtest_main
     )
     add_test(NAME test_subscriber COMMAND test_subscriber)
+
+    add_executable(test_publisher test_publisher.cpp)
+    target_link_libraries(test_publisher PRIVATE
+        mm_core
+        GTest::gtest_main
+    )
+    add_test(NAME test_publisher COMMAND test_publisher)
 else()
     message(WARNING "gtest not found, skipping tests")
 endif()
