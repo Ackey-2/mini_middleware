@@ -11,6 +11,7 @@ target_include_directories(mm_core PUBLIC
 # core 依赖 transport / proto / common,并用到 std::thread
 target_link_libraries(mm_core PUBLIC
     mm_transport
+    mm_discovery
     mm_proto
     mm_common
     Threads::Threads
