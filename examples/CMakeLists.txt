@@ -17,3 +17,6 @@ target_link_libraries(tcp_client_demo PRIVATE mm_transport)
 
 add_executable(intra_process_demo intra_process_demo.cpp)
 target_link_libraries(intra_process_demo PRIVATE mm_core)
+
+add_executable(discovery_demo discovery_demo.cpp)
+target_link_libraries(discovery_demo PRIVATE mm_core)
