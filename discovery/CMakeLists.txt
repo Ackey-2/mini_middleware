@@ -2,6 +2,7 @@
 add_library(mm_discovery STATIC
     src/udp_multicast.cpp
     src/endpoint_matcher.cpp
+    src/discovery_agent.cpp
 )
 
 target_include_directories(mm_discovery PUBLIC

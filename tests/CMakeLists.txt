@@ -57,6 +57,13 @@ if(GTest_FOUND)
         GTest::gtest_main
     )
     add_test(NAME test_endpoint_matcher COMMAND test_endpoint_matcher)
+
+    add_executable(test_discovery_agent test_discovery_agent.cpp)
+    target_link_libraries(test_discovery_agent PRIVATE
+        mm_discovery
+        GTest::gtest_main
+    )
+    add_test(NAME test_discovery_agent COMMAND test_discovery_agent)
 else()
     message(WARNING "gtest not found, skipping tests")
 endif()
