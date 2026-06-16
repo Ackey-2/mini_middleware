@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package mm;
+
+// 给 Phase 3 TCP 用的监听地址
+message Locator {
+    string ip = 1;
+    uint32 port = 2;
+}
+
+// 一个端点:某进程在某 topic 上发布或订阅
+message EndpointInfo {
+    enum Kind {
+        PUBLISHER = 0;
+        SUBSCRIBER = 1;
+    }
+    Kind kind = 1;
+    string topic = 2;
+    string type_name = 3;
+}
+
+// 周期性多播公告:合并了 DDS 的 SPDP(参与者) + SEDP(端点)
+message ParticipantAnnouncement {
+    uint64 participant_id = 1;   // 随机生成,用于识别和过滤自身
+    string node_name = 2;
+    Locator data_locator = 3;    // Phase 3 填真实端口;Phase 2 填占位值
+    repeated EndpointInfo endpoints = 4;
+}

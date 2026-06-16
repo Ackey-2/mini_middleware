@@ -36,6 +36,41 @@ if(GTest_FOUND)
         GTest::gtest_main
     )
     add_test(NAME test_node COMMAND test_node)
+
+    add_executable(test_discovery_proto test_discovery_proto.cpp)
+    target_link_libraries(test_discovery_proto PRIVATE
+        mm_proto
+        GTest::gtest_main
+    )
+    add_test(NAME test_discovery_proto COMMAND test_discovery_proto)
+
+    add_executable(test_udp_multicast test_udp_multicast.cpp)
+    target_link_libraries(test_udp_multicast PRIVATE
+        mm_discovery
+        GTest::gtest_main
+    )
+    add_test(NAME test_udp_multicast COMMAND test_udp_multicast)
+
+    add_executable(test_endpoint_matcher test_endpoint_matcher.cpp)
+    target_link_libraries(test_endpoint_matcher PRIVATE
+        mm_discovery
+        GTest::gtest_main
+    )
+    add_test(NAME test_endpoint_matcher COMMAND test_endpoint_matcher)
+
+    add_executable(test_discovery_agent test_discovery_agent.cpp)
+    target_link_libraries(test_discovery_agent PRIVATE
+        mm_discovery
+        GTest::gtest_main
+    )
+    add_test(NAME test_discovery_agent COMMAND test_discovery_agent)
+
+    add_executable(test_node_discovery test_node_discovery.cpp)
+    target_link_libraries(test_node_discovery PRIVATE
+        mm_core
+        GTest::gtest_main
+    )
+    add_test(NAME test_node_discovery COMMAND test_node_discovery)
 else()
     message(WARNING "gtest not found, skipping tests")
 endif()
