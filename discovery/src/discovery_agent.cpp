@@ -32,6 +32,7 @@ void DiscoveryAgent::add_endpoint(EndpointInfo::Kind kind, const std::string& to
     e.set_topic(topic);
     e.set_type_name(type_name);
     local_endpoints_.push_back(std::move(e));
+    endpoints_dirty_.store(true);   // 让后台线程下一轮对已知远端重算匹配
 }
 
 void DiscoveryAgent::on_match(MatchCallback cb) {
@@ -45,8 +46,8 @@ void DiscoveryAgent::on_unmatch(MatchCallback cb) {
 
 void DiscoveryAgent::set_timing(std::chrono::milliseconds announce_interval,
                                 std::chrono::milliseconds liveliness_timeout) {
-    announce_interval_ = announce_interval;
-    liveliness_timeout_ = liveliness_timeout;
+    announce_interval_.store(announce_interval);
+    liveliness_timeout_.store(liveliness_timeout);
 }
 
 bool DiscoveryAgent::start() {
@@ -81,8 +82,11 @@ void DiscoveryAgent::run() {
                 LOG_WARN("discovery: bad announcement dropped");
             }
         }
+        if (endpoints_dirty_.exchange(false)) {
+            rematch_all();   // 本地新增端点,对所有已知远端重算
+        }
         auto now = std::chrono::steady_clock::now();
-        if (now - last_announce_ >= announce_interval_) {
+        if (now - last_announce_ >= announce_interval_.load()) {
             announce();
             last_announce_ = now;
         }
@@ -112,13 +116,17 @@ void DiscoveryAgent::handle_announcement(const ParticipantAnnouncement& ann) {
     r.locator = ann.data_locator();
     r.last_seen = std::chrono::steady_clock::now();
 
+    try_match(ann.participant_id(), r);
+}
+
+void DiscoveryAgent::try_match(uint64_t remote_id, const Remote& r) {
     std::vector<EndpointInfo> local;
     {
         std::lock_guard<std::mutex> lock(mtx_);
         local = local_endpoints_;
     }
 
-    auto matches = match_endpoints(local, ann.participant_id(), r.locator, r.endpoints);
+    auto matches = match_endpoints(local, remote_id, r.locator, r.endpoints);
     for (auto& m : matches) {
         std::string key = match_key(m);
         if (active_matches_.find(key) == active_matches_.end()) {
@@ -133,10 +141,16 @@ void DiscoveryAgent::handle_announcement(const ParticipantAnnouncement& ann) {
     }
 }
 
+void DiscoveryAgent::rematch_all() {
+    for (const auto& kv : remotes_) {
+        try_match(kv.first, kv.second);
+    }
+}
+
 void DiscoveryAgent::reap_dead() {
     auto now = std::chrono::steady_clock::now();
     for (auto it = remotes_.begin(); it != remotes_.end();) {
-        if (now - it->second.last_seen > liveliness_timeout_) {
+        if (now - it->second.last_seen > liveliness_timeout_.load()) {
             uint64_t dead_id = it->first;
             for (auto mit = active_matches_.begin(); mit != active_matches_.end();) {
                 if (mit->second.remote_participant_id == dead_id) {

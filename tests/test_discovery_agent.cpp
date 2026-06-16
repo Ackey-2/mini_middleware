@@ -82,6 +82,51 @@ TEST(DiscoveryAgent, UnmatchOnTimeout) {
     b.stop();
 }
 
+// 端点在"远端已被发现之后"才注册,应立即对已知远端重算匹配,
+// 而不必等对端重新公告。用很长的公告间隔确保:测试窗口内每个 agent 只在
+// 启动时公告一次,因此 A 的匹配只可能来自本地新增端点触发的重算。
+TEST(DiscoveryAgent, MatchesEndpointAddedAfterRemoteKnown) {
+    const std::string group = "239.255.1.23";
+    const uint16_t port = 7434;
+
+    DiscoveryAgent a("nodeA", loc("127.0.0.1", 5001), group, port);
+    DiscoveryAgent b("nodeB", loc("127.0.0.1", 5002), group, port);
+    a.set_timing(10000ms, 30000ms);
+    b.set_timing(10000ms, 30000ms);
+
+    const uint64_t b_id = b.participant_id();
+    std::atomic<int> a_match{0};
+    MatchInfo a_seen;
+    a.on_match([&](const MatchInfo& m) {
+        if (m.remote_participant_id != b_id) return;   // 忽略组上其它公告
+        a_seen = m;
+        ++a_match;
+    });
+
+    // B 带着订阅端点启动并公告一次;A 先启动以确保收到这次公告。
+    b.add_endpoint(EndpointInfo::SUBSCRIBER, "/late", "mm.StringMsg");
+    ASSERT_TRUE(a.start());
+    ASSERT_TRUE(b.start());
+
+    // A 此时没有任何本地端点,收到 B 的公告也不会匹配。
+    std::this_thread::sleep_for(300ms);
+    ASSERT_EQ(a_match.load(), 0);
+
+    // 现在给 A 注册一个匹配的发布端点 —— 应立即对已知的 B 重算并触发匹配。
+    a.add_endpoint(EndpointInfo::PUBLISHER, "/late", "mm.StringMsg");
+
+    for (int i = 0; i < 100 && a_match.load() == 0; ++i)
+        std::this_thread::sleep_for(20ms);
+
+    EXPECT_GE(a_match.load(), 1);
+    EXPECT_EQ(a_seen.remote.topic(), "/late");
+    EXPECT_EQ(a_seen.remote.kind(), EndpointInfo::SUBSCRIBER);
+    EXPECT_EQ(a_seen.remote_participant_id, b_id);
+
+    a.stop();
+    b.stop();
+}
+
 TEST(DiscoveryAgent, DoesNotSelfMatch) {
     DiscoveryAgent a("solo", loc("127.0.0.1", 5001), "239.255.1.22", 7433);
     a.set_timing(50ms, 5000ms);
