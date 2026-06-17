@@ -45,17 +45,17 @@ private:
     void close_connection(int fd);
 
 private:
-    uint16_t port_;
-    int listen_fd_ = -1;
-    int epoll_fd_ = -1;
+        uint16_t port_;
+        int listen_fd_ = -1;
+        int epoll_fd_ = -1;
 
-    std::atomic<bool> running_{false};
-    std::thread thread_;
+        std::atomic<bool> running_{false};
+        std::thread thread_;
 
-    MessageCallback callback_;
+        MessageCallback callback_;
 
-    // 每个连接的接收 buffer(字节流累加,等待帧解析)
-    std::unordered_map<int, std::string> connection_buffers_;
+        // 每个连接的接收 buffer(字节流累加,等待帧解析)
+        std::unordered_map<int, std::string> connection_buffers_;
 };
 
 }  // namespace mm

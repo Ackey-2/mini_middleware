@@ -55,24 +55,6 @@ std::string FrameCodec::encode(const std::string& payload) {
 std::vector<std::string> FrameCodec::decode(std::string& buffer) {
     std::vector<std::string> messages;
 
-    // TODO: 你来写
-    //
-    // 算法:
-    //   while (buffer 里至少有 HEADER_SIZE 字节) {
-    //       读 length = read_uint32_be(buffer 开头)
-    //       if (buffer 总长 < HEADER_SIZE + length) {
-    //           // 还没收齐这条消息的完整 body,等下次
-    //           break;
-    //       }
-    //       提取 payload(buffer[HEADER_SIZE .. HEADER_SIZE+length])
-    //       加入 messages
-    //       从 buffer 头部移除 HEADER_SIZE + length 字节
-    //   }
-    //
-    // 注意:
-    //   1. 必须用 while 不是 if —— 一次调用可能取出多条消息
-    //   2. buffer.erase(0, n) 可以从头部删 n 字节(简单但低效,后面优化)
-    //   3. 别忘了边界:buffer 太短直接 return 空
 
     while(buffer.size()>=HEADER_SIZE){
         uint32_t length = read_uint32_be(&buffer[0]);

@@ -53,13 +53,13 @@ bool TcpClientTransport::start() {
         return false;
     }//填充服务端地址结构体
     //阻塞 connect:卡在这一行,直到三次握手完成或失败,才返回。
-    // 非阻塞 connect:可能立刻成功(本机),也可能 EINPROGRESS
+    //非阻塞 connect:可能立刻成功(本机),也可能 EINPROGRESS，但是会立马返回
     int ret = ::connect(sock_fd_, (sockaddr*)&addr, sizeof(addr));//
     if (ret == 0) {
         // 极少见:连接立刻完成
         state_ = ConnectionState::CONNECTED;
         LOG_INFO("connected immediately to {}:{}", host_, port_);
-    } else if (errno == EINPROGRESS) {
+    } else if (errno == EINPROGRESS) {//这个特殊值"这不是错,这是非阻塞专属的'稍等
         state_ = ConnectionState::CONNECTING;
         LOG_INFO("connecting to {}:{}...", host_, port_);
     } else {
@@ -82,13 +82,13 @@ bool TcpClientTransport::start() {
     //   - CONNECTING:监听 EPOLLOUT(连接完成)
     //   - CONNECTED:监听 EPOLLIN(可读)
     epoll_event ev{};
-    if (state_ == ConnectionState::CONNECTING) {
-        ev.events = EPOLLOUT;
+    if (state_ == ConnectionState::CONNECTING) {//正在连接
+        ev.events = EPOLLOUT;//这里就是要监听socket是否可写,因为没有建立连接是不可写的，此时 EPOLLOUT 就触发
     } else {
         ev.events = EPOLLIN;
     }
     ev.data.fd = sock_fd_;
-    epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, sock_fd_, &ev);
+    epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, sock_fd_, &ev);//我有一个 eventpoll(epoll_fd_),我现在把 sock_fd_ 这个 socket 加到它的关心列表里;以后这个 socket 上任何符合 ev.events 掩码的状态变化——握手完成(可写)、收到数据(可读)、连接被 reset(错误)——都通过 socket 自己的等待队列回调,把消息自动转发到我这个 eventpoll 的就绪链表上,把我在 epoll_wait 上睡着的 event_loop 线程叫醒。
 
     running_ = true;
     thread_ = std::thread(&TcpClientTransport::event_loop, this);
@@ -133,7 +133,7 @@ void TcpClientTransport::event_loop() {
             LOG_ERROR("epoll_wait failed: {}", strerror(errno));
             break;
         }
-
+        
         for (int i = 0; i < n; ++i) {
             uint32_t evs = events[i].events;
 
@@ -153,9 +153,7 @@ void TcpClientTransport::event_loop() {
     }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// ⭐ handle_connect_complete:连接完成后的处理(你来写)
-// ═══════════════════════════════════════════════════════════════
+
 
 void TcpClientTransport::handle_connect_complete() {
     // TODO ⭐ 你来写
@@ -238,9 +236,7 @@ void TcpClientTransport::handle_write() {
     }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// ⭐ send:把 payload 编码成帧,排进 write_buffer_,触发 EPOLLOUT(你来写)
-// ═══════════════════════════════════════════════════════════════
+
 
 bool TcpClientTransport::send(const std::string& payload) {
     if(state_.load()!=ConnectionState::CONNECTED) return false;
@@ -254,14 +250,7 @@ bool TcpClientTransport::send(const std::string& payload) {
     ev.data.fd = sock_fd_;
     epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, sock_fd_, &ev);
     return true;
-    // TODO ⭐ 你来写
-    //
-    // 任务:
-    //   1. 检查 state_:必须是 CONNECTED 才能 send,否则返回 false
-    //   2. 用 FrameCodec::encode(payload) 把数据包成帧
-    //   3. 加锁后 write_buffer_.append(frame)
-    //   4. 修改 epoll 监听:增加 EPOLLOUT(EPOLL_CTL_MOD)
-    //      这样后台线程的 epoll_wait 会被触发,handle_write 会跑起来
+
 
 }
 
