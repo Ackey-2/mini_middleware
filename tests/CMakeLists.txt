@@ -78,6 +78,13 @@ if(GTest_FOUND)
         GTest::gtest_main
     )
     add_test(NAME test_node_discovery COMMAND test_node_discovery)
+
+    add_executable(test_tcp_ephemeral_port test_tcp_ephemeral_port.cpp)
+    target_link_libraries(test_tcp_ephemeral_port PRIVATE
+        mm_transport
+        GTest::gtest_main
+    )
+    add_test(NAME test_tcp_ephemeral_port COMMAND test_tcp_ephemeral_port)
 else()
     message(WARNING "gtest not found, skipping tests")
 endif()

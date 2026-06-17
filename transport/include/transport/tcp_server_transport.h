@@ -31,6 +31,10 @@ public:
     void on_message(MessageCallback cb) override;
     bool send(const std::string& payload) override;   // 不实现,返回 false
 
+    // 实际监听端口。传入端口 0 时由内核分配临时端口,start() 成功后此处可读真实值。
+    // 仅在 start() 返回后读取(start() 在返回前写入 port_,之后只读,无数据竞争)。
+    uint16_t local_port() const { return port_; }
+
 private:
     // 后台线程主体:epoll 事件循环
     void event_loop();

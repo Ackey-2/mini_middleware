@@ -61,6 +61,15 @@ bool TcpServerTransport::start() {
         return false;
     }
 
+    // 绑定后回填实际端口:传入 0 时内核已分配一个临时端口
+    sockaddr_in actual{};
+    socklen_t alen = sizeof(actual);
+    if (getsockname(listen_fd_, (sockaddr*)&actual, &alen) == 0) {
+        port_ = ntohs(actual.sin_port);
+    } else {
+        LOG_ERROR("getsockname() failed: {}", strerror(errno));
+    }
+
     if (listen(listen_fd_, BACKLOG) < 0) {//socket 进入 listening 状态
         LOG_ERROR("listen() failed: {}", strerror(errno));
         close(listen_fd_);
