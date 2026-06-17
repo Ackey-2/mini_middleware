@@ -92,6 +92,13 @@ if(GTest_FOUND)
         GTest::gtest_main
     )
     add_test(NAME test_remote_sink COMMAND test_remote_sink)
+
+    add_executable(test_data_plane test_data_plane.cpp)
+    target_link_libraries(test_data_plane PRIVATE
+        mm_core
+        GTest::gtest_main
+    )
+    add_test(NAME test_data_plane COMMAND test_data_plane)
 else()
     message(WARNING "gtest not found, skipping tests")
 endif()
