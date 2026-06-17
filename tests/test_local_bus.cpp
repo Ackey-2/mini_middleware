@@ -62,3 +62,32 @@ TEST(LocalBus, RejectsTypeMismatch) {
     EXPECT_EQ(a->received.size(), 1u);
     EXPECT_EQ(b->received.size(), 0u);
 }
+
+TEST(LocalBus, RemoteSinkReceivesPublishButNotInbound) {
+    LocalBus bus;
+    auto local = std::make_shared<FakeSink>();
+    auto remote = std::make_shared<FakeSink>();
+    bus.subscribe("/t", "mm.StringMsg", local);
+    bus.add_remote_sink("/t", remote);
+
+    bus.publish("/t", "mm.StringMsg", "out");
+    EXPECT_EQ(local->received.size(), 1u);   // 本地收到
+    EXPECT_EQ(remote->received.size(), 1u);  // publish 扇出到远端
+
+    bus.deliver_inbound("/t", "in");
+    EXPECT_EQ(local->received.size(), 2u);   // 入站投本地
+    EXPECT_EQ(remote->received.size(), 1u);  // ★ 入站绝不触达远端(环路安全)
+}
+
+TEST(LocalBus, RemoveRemoteSinkStopsDelivery) {
+    LocalBus bus;
+    auto remote = std::make_shared<FakeSink>();
+    bus.add_remote_sink("/t", remote);
+
+    bus.publish("/t", "mm.StringMsg", "before");
+    EXPECT_EQ(remote->received.size(), 1u);   // 移除前能收到
+
+    bus.remove_remote_sink("/t", remote.get());
+    bus.publish("/t", "mm.StringMsg", "after");
+    EXPECT_EQ(remote->received.size(), 1u);    // 移除后不再增长
+}
