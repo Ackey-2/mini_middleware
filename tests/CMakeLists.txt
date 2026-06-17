@@ -99,6 +99,13 @@ if(GTest_FOUND)
         GTest::gtest_main
     )
     add_test(NAME test_data_plane COMMAND test_data_plane)
+
+    add_executable(test_tcp_pubsub test_tcp_pubsub.cpp)
+    target_link_libraries(test_tcp_pubsub PRIVATE
+        mm_core
+        GTest::gtest_main
+    )
+    add_test(NAME test_tcp_pubsub COMMAND test_tcp_pubsub)
 else()
     message(WARNING "gtest not found, skipping tests")
 endif()

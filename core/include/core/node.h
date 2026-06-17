@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/data_plane.h"
 #include "core/local_bus.h"
 #include "core/publisher.h"
 #include "core/subscriber.h"
@@ -51,10 +52,12 @@ public:
     DiscoveryAgent& discovery() { return *discovery_; }
 
 private:
-    // 成员析构顺序(声明逆序):entities_ 先析构(Subscriber 停线程)→ discovery_
-    // (停发现线程,结束在途回调)→ bus_ 最后。顺序不可随意调换。
+    // 成员析构顺序(声明逆序):entities_(停订阅线程)→ discovery_(停发现线程,
+    // 不再有匹配回调)→ data_plane_(停服务器与所有出站连接,释放 RemoteSink)
+    // → bus_。discovery 必须先于 data_plane 析构。
     std::string name_;
     std::shared_ptr<LocalBus> bus_;
+    std::unique_ptr<DataPlane> data_plane_;
     std::unique_ptr<DiscoveryAgent> discovery_;
     std::vector<std::shared_ptr<void>> entities_;   // 持有 pub/sub 寿命
 };
