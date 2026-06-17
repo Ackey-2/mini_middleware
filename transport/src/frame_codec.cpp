@@ -8,7 +8,6 @@ namespace mm {
 // ═══════════════════════════════════════════════════════════════
 
 void FrameCodec::write_uint32_be(char* dst, uint32_t value) {
-    // TODO: 把 value 写成 4 字节大端到 dst  
     // 1. 右移 24 位，把 0x12 推到最右边，然后与 0xFF 掩码做与运算，提取出来
     dst[0] = static_cast<char>((value >> 24) & 0xFF); 
     

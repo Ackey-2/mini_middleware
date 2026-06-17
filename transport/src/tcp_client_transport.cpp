@@ -110,8 +110,15 @@ void TcpClientTransport::stop() {
 
     if (thread_.joinable()) thread_.join();
 
-    if (sock_fd_ >= 0) { ::close(sock_fd_); sock_fd_ = -1; }
-    if (epoll_fd_ >= 0) { ::close(epoll_fd_); epoll_fd_ = -1; }
+    // 事件循环线程已 join,fd 的唯一其它使用者是外部线程的 send()。
+    // 在 write_mutex_ 内关 fd,与 send() 的 epoll_ctl 互斥:
+    // 由于 stopped_ 已在上面 exchange(true) 置位,任何后续 send() 在锁内会看到
+    // stopped_==true 而提前返回,不会对已关闭的 fd 调用 epoll_ctl。
+    {
+        std::lock_guard<std::mutex> lock(write_mutex_);
+        if (sock_fd_ >= 0) { ::close(sock_fd_); sock_fd_ = -1; }
+        if (epoll_fd_ >= 0) { ::close(epoll_fd_); epoll_fd_ = -1; }
+    }
 
     state_ = ConnectionState::DISCONNECTED;
     LOG_INFO("TcpClientTransport stopped");
@@ -158,7 +165,6 @@ void TcpClientTransport::event_loop() {
 
 
 void TcpClientTransport::handle_connect_complete() {
-    // TODO ⭐ 你来写
     int err=0;
     socklen_t len=sizeof(err);
     getsockopt(sock_fd_, SOL_SOCKET, SO_ERROR, &err, &len);
@@ -245,12 +251,16 @@ bool TcpClientTransport::send(const std::string& payload) {
     std:: string frame =FrameCodec::encode(payload);
     {
         std::lock_guard<std::mutex> lock(write_mutex_);
+        // stop() 把 stopped_ 置位(在取锁关 fd 之前)。在锁内检查它:
+        // 若 stop() 已置位,这里直接返回,绝不碰可能已被关闭的 fd;
+        // 若 send() 先抢到锁,fd 此刻仍然有效,stop() 会等锁后再关。
+        if (stopped_.load()) return false;
         write_buffer_.append(frame);
+        epoll_event ev{};
+        ev.events = EPOLLIN | EPOLLOUT;
+        ev.data.fd = sock_fd_;
+        epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, sock_fd_, &ev);
     }
-    epoll_event ev{};
-    ev.events = EPOLLIN | EPOLLOUT;
-    ev.data.fd = sock_fd_;
-    epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, sock_fd_, &ev);
     return true;
 
 
