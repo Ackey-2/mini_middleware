@@ -54,6 +54,7 @@ private:
     int epoll_fd_ = -1;
 
     std::atomic<bool> running_{false};
+    std::atomic<bool> stopped_{false};    // stop() 幂等守卫(running_ 可被事件循环自行清零)
     std::atomic<ConnectionState> state_{ConnectionState::DISCONNECTED};
     std::thread thread_;
 

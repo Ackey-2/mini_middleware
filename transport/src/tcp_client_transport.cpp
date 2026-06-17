@@ -100,7 +100,9 @@ bool TcpClientTransport::start() {
 // ═══════════════════════════════════════════════════════════════
 
 void TcpClientTransport::stop() {
-    if (!running_.exchange(false)) return;
+    // running_ 可能已被事件循环自己清零(对端关闭/出错),所以用独立守卫保证 join 只做一次。
+    if (stopped_.exchange(true)) return;
+    running_ = false;
 
     if (sock_fd_ >= 0) {
         ::shutdown(sock_fd_, SHUT_RDWR);
