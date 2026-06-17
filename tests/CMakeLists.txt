@@ -44,6 +44,13 @@ if(GTest_FOUND)
     )
     add_test(NAME test_discovery_proto COMMAND test_discovery_proto)
 
+    add_executable(test_data_message test_data_message.cpp)
+    target_link_libraries(test_data_message PRIVATE
+        mm_proto
+        GTest::gtest_main
+    )
+    add_test(NAME test_data_message COMMAND test_data_message)
+
     add_executable(test_udp_multicast test_udp_multicast.cpp)
     target_link_libraries(test_udp_multicast PRIVATE
         mm_discovery
