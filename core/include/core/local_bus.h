@@ -38,10 +38,19 @@ public:
     void publish(const std::string& topic, const std::string& type_name,
                  const std::string& bytes);
 
+    // 注册一个远端转发 sink(Phase 3 RemoteSink)。publish 会扇出到它,
+    // 但 deliver_inbound 不会——入站数据绝不被再次转发出去。
+    void add_remote_sink(const std::string& topic, std::shared_ptr<ISink> sink);
+    void remove_remote_sink(const std::string& topic, ISink* sink);
+
+    // 网络层收到一帧后的落点:只投给该 topic 的本地订阅者。
+    void deliver_inbound(const std::string& topic, const std::string& bytes);
+
 private:
     struct TopicEntry {
-        std::string type_name;                      // 该 topic 约定的类型(空=未定)
-        std::vector<std::weak_ptr<ISink>> sinks;
+        std::string type_name;                            // 该 topic 约定的类型(空=未定)
+        std::vector<std::weak_ptr<ISink>> sinks;          // 本地订阅者
+        std::vector<std::weak_ptr<ISink>> remote_sinks;   // 远端转发代理(RemoteSink)
     };
 
     // 检查/确定 topic 类型;一致返回 true,不一致 LOG_ERROR 返回 false

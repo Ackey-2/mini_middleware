@@ -47,11 +47,11 @@ bool TcpServerTransport::start() {
     }
 
     int opt = 1;
-    setsockopt(listen_fd_, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+    setsockopt(listen_fd_, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));//SO_REUSEADDR → 允许端口快速重用
 
     sockaddr_in addr{};
     addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);//其底层实际值就是 0.0.0.0）表示监听本机所有的网络接口（网卡）。
     addr.sin_port = htons(port_);
 
     if (bind(listen_fd_, (sockaddr*)&addr, sizeof(addr)) < 0) {
@@ -61,7 +61,16 @@ bool TcpServerTransport::start() {
         return false;
     }
 
-    if (listen(listen_fd_, BACKLOG) < 0) {
+    // 绑定后回填实际端口:传入 0 时内核已分配一个临时端口
+    sockaddr_in actual{};
+    socklen_t alen = sizeof(actual);
+    if (getsockname(listen_fd_, (sockaddr*)&actual, &alen) == 0) {
+        port_ = ntohs(actual.sin_port);
+    } else {
+        LOG_ERROR("getsockname() failed: {}", strerror(errno));
+    }
+
+    if (listen(listen_fd_, BACKLOG) < 0) {//socket 进入 listening 状态
         LOG_ERROR("listen() failed: {}", strerror(errno));
         close(listen_fd_);
         listen_fd_ = -1;
@@ -81,7 +90,7 @@ bool TcpServerTransport::start() {
 
     // 3. 把 listen_fd_ 加入 epoll
     epoll_event ev{};
-    ev.events = EPOLLIN;
+    ev.events = EPOLLIN;//我关心可读事件——对 listen_fd 来说,"可读"就是"accept queue 里有新连接了
     ev.data.fd = listen_fd_;
     if (epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, listen_fd_, &ev) < 0) {
         LOG_ERROR("epoll_ctl ADD listen_fd failed: {}", strerror(errno));

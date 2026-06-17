@@ -31,6 +31,10 @@ public:
     void on_message(MessageCallback cb) override;
     bool send(const std::string& payload) override;   // 不实现,返回 false
 
+    // 实际监听端口。传入端口 0 时由内核分配临时端口,start() 成功后此处可读真实值。
+    // 仅在 start() 返回后读取(start() 在返回前写入 port_,之后只读,无数据竞争)。
+    uint16_t local_port() const { return port_; }
+
 private:
     // 后台线程主体:epoll 事件循环
     void event_loop();
@@ -45,17 +49,17 @@ private:
     void close_connection(int fd);
 
 private:
-    uint16_t port_;
-    int listen_fd_ = -1;
-    int epoll_fd_ = -1;
+        uint16_t port_;
+        int listen_fd_ = -1;
+        int epoll_fd_ = -1;
 
-    std::atomic<bool> running_{false};
-    std::thread thread_;
+        std::atomic<bool> running_{false};
+        std::thread thread_;
 
-    MessageCallback callback_;
+        MessageCallback callback_;
 
-    // 每个连接的接收 buffer(字节流累加,等待帧解析)
-    std::unordered_map<int, std::string> connection_buffers_;
+        // 每个连接的接收 buffer(字节流累加,等待帧解析)
+        std::unordered_map<int, std::string> connection_buffers_;
 };
 
 }  // namespace mm

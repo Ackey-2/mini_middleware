@@ -44,6 +44,13 @@ if(GTest_FOUND)
     )
     add_test(NAME test_discovery_proto COMMAND test_discovery_proto)
 
+    add_executable(test_data_message test_data_message.cpp)
+    target_link_libraries(test_data_message PRIVATE
+        mm_proto
+        GTest::gtest_main
+    )
+    add_test(NAME test_data_message COMMAND test_data_message)
+
     add_executable(test_udp_multicast test_udp_multicast.cpp)
     target_link_libraries(test_udp_multicast PRIVATE
         mm_discovery
@@ -71,6 +78,34 @@ if(GTest_FOUND)
         GTest::gtest_main
     )
     add_test(NAME test_node_discovery COMMAND test_node_discovery)
+
+    add_executable(test_tcp_ephemeral_port test_tcp_ephemeral_port.cpp)
+    target_link_libraries(test_tcp_ephemeral_port PRIVATE
+        mm_transport
+        GTest::gtest_main
+    )
+    add_test(NAME test_tcp_ephemeral_port COMMAND test_tcp_ephemeral_port)
+
+    add_executable(test_remote_sink test_remote_sink.cpp)
+    target_link_libraries(test_remote_sink PRIVATE
+        mm_core
+        GTest::gtest_main
+    )
+    add_test(NAME test_remote_sink COMMAND test_remote_sink)
+
+    add_executable(test_data_plane test_data_plane.cpp)
+    target_link_libraries(test_data_plane PRIVATE
+        mm_core
+        GTest::gtest_main
+    )
+    add_test(NAME test_data_plane COMMAND test_data_plane)
+
+    add_executable(test_tcp_pubsub test_tcp_pubsub.cpp)
+    target_link_libraries(test_tcp_pubsub PRIVATE
+        mm_core
+        GTest::gtest_main
+    )
+    add_test(NAME test_tcp_pubsub COMMAND test_tcp_pubsub)
 else()
     message(WARNING "gtest not found, skipping tests")
 endif()
