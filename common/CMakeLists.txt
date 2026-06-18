@@ -3,13 +3,11 @@
 # 职责:日志、线程安全队列、其他通用工具
 # ═══════════════════════════════════════════════════════════════
 
-# 现在还没有源文件,先建一个占位的 .cpp,否则 add_library 会报错
-file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/placeholder.cpp "// auto-generated\n")
-
 # 把这个模块编译成静态库,名字叫 mm_common("mm" = mini_middleware 的缩写)
 
 add_library(mm_common STATIC
     src/logger.cpp
+    src/host_id.cpp
 )
 
 # 这个模块的 include 路径
