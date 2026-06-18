@@ -62,6 +62,7 @@ private:
     void shm_sub_unmatch(const MatchInfo& m);
 
     bool same_host(const MatchInfo& m) const;             // 启用 SHM 且 host_id 相同
+    bool use_shm(const MatchInfo& m) const;               // 同机 且 订阅者为 BEST_EFFORT
 
     std::shared_ptr<LocalBus> bus_;
     std::string advertise_ip_;

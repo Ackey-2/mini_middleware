@@ -81,6 +81,15 @@ bool DataPlane::same_host(const MatchInfo& m) const {
     return shm_enabled_ && !local_host_id_.empty() && m.remote_host_id == local_host_id_;
 }
 
+// SHM 环是有损的(BEST_EFFORT),故仅当订阅者请求 BEST_EFFORT 才走 SHM;
+// 订阅者请求 RELIABLE → 退回 TCP(有序不丢)。订阅者端点 = 本地 SUB 或远端 SUB。
+bool DataPlane::use_shm(const MatchInfo& m) const {
+    if (!same_host(m)) return false;
+    const EndpointInfo& reader =
+        (m.local.kind() == EndpointInfo::SUBSCRIBER) ? m.local : m.remote;
+    return reader.reliability() == 0;   // 0 = BEST_EFFORT
+}
+
 void DataPlane::on_inbound(const std::string& payload) {
     DataMessage msg;
     if (!msg.ParseFromString(payload)) {
@@ -96,11 +105,11 @@ void DataPlane::handle_match(const MatchInfo& m) {
     std::lock_guard<std::mutex> lock(mtx_);
     if (stopped_) return;
     if (m.local.kind() == EndpointInfo::PUBLISHER) {
-        if (same_host(m)) shm_pub_match(m);   // 同机 → SHM 写者
-        else              tcp_pub_match(m);   // 跨机 → TCP 主动连
+        if (use_shm(m)) shm_pub_match(m);     // 同机 + BEST_EFFORT → SHM 写者
+        else            tcp_pub_match(m);     // 跨机 或 RELIABLE → TCP 主动连
     } else {                                   // 本地是 SUBSCRIBER
-        if (same_host(m)) shm_sub_match(m);   // 同机 → SHM 读者
-        // 跨机订阅:不动作,等 TCP 入站(Phase 3 规则)
+        if (use_shm(m)) shm_sub_match(m);     // 同机 + BEST_EFFORT → SHM 读者
+        // 否则(跨机 或 RELIABLE):不动作,等 TCP 入站(Phase 3 规则)
     }
 }
 
@@ -108,10 +117,10 @@ void DataPlane::handle_unmatch(const MatchInfo& m) {
     std::lock_guard<std::mutex> lock(mtx_);
     if (stopped_) return;
     if (m.local.kind() == EndpointInfo::PUBLISHER) {
-        if (same_host(m)) shm_pub_unmatch(m);
-        else              tcp_pub_unmatch(m);
+        if (use_shm(m)) shm_pub_unmatch(m);
+        else            tcp_pub_unmatch(m);
     } else {
-        if (same_host(m)) shm_sub_unmatch(m);
+        if (use_shm(m)) shm_sub_unmatch(m);
     }
 }
 

@@ -149,6 +149,13 @@ if(GTest_FOUND)
     )
     add_test(NAME test_data_plane COMMAND test_data_plane)
 
+    add_executable(test_qos_routing test_qos_routing.cpp)
+    target_link_libraries(test_qos_routing PRIVATE
+        mm_core
+        GTest::gtest_main
+    )
+    add_test(NAME test_qos_routing COMMAND test_qos_routing)
+
     add_executable(test_tcp_pubsub test_tcp_pubsub.cpp)
     target_link_libraries(test_tcp_pubsub PRIVATE
         mm_core
