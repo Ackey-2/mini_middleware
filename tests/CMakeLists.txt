@@ -134,6 +134,13 @@ if(GTest_FOUND)
         GTest::gtest_main
     )
     add_test(NAME test_tcp_pubsub COMMAND test_tcp_pubsub)
+
+    add_executable(test_shm_pubsub test_shm_pubsub.cpp)
+    target_link_libraries(test_shm_pubsub PRIVATE
+        mm_core
+        GTest::gtest_main
+    )
+    add_test(NAME test_shm_pubsub COMMAND test_shm_pubsub)
 else()
     message(WARNING "gtest not found, skipping tests")
 endif()

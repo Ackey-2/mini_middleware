@@ -10,15 +10,15 @@
 using namespace mm;
 using namespace std::chrono_literals;
 
-// 两个独立 Node:UDP 发现匹配 + TCP 数据面把消息真正传过去。
-// 两 Node 同机(host_id 相同),默认会走 SHM;这里显式关闭 SHM 以锁定并回归 TCP 路径。
-TEST(TcpPubSub, EndToEndDelivery) {
-    Node talker("talker", /*enable_shm=*/false);
-    Node listener("listener", /*enable_shm=*/false);
+// 两个同机 Node(host_id 相同,默认启用 SHM):UDP 发现匹配后,数据面自动
+// 切到共享内存零拷贝。发布者写 ring,订阅者轮询 ring 收到。
+TEST(ShmPubSub, EndToEndDelivery) {
+    Node talker("shm_talker");        // 默认 enable_shm=true
+    Node listener("shm_listener");
     talker.discovery().set_timing(80ms, 5000ms);
     listener.discovery().set_timing(80ms, 5000ms);
 
-    const std::string topic = "/tcp_pubsub_chatter";
+    const std::string topic = "/shm_pubsub_chatter";
     std::atomic<int> got{0};
     std::string last;
     std::mutex lk;
@@ -31,15 +31,15 @@ TEST(TcpPubSub, EndToEndDelivery) {
         });
     auto pub = talker.create_publisher<mm::StringMsg>(topic);
 
-    // 周期性发布:等发现匹配 + TCP 建链 + 投递
+    // 周期性发布:等发现匹配 + SHM 建段 + reader 打开 + 投递
     for (int i = 0; i < 300 && got.load() == 0; ++i) {
         mm::StringMsg msg;
-        msg.set_data("hello-tcp");
+        msg.set_data("hello-shm");
         pub->publish(msg);
         std::this_thread::sleep_for(20ms);
     }
 
     ASSERT_GE(got.load(), 1);
     std::lock_guard<std::mutex> g(lk);
-    EXPECT_EQ(last, "hello-tcp");
+    EXPECT_EQ(last, "hello-shm");
 }
