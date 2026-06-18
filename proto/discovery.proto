@@ -25,4 +25,5 @@ message ParticipantAnnouncement {
     string node_name = 2;
     Locator data_locator = 3;    // Phase 3 填真实端口;Phase 2 填占位值
     repeated EndpointInfo endpoints = 4;
+    string host_id = 5;          // Phase 4 机器级标识;两端相等即同主机 → 走共享内存
 }

@@ -2,6 +2,27 @@
 find_package(GTest QUIET)
 
 if(GTest_FOUND)
+    add_executable(test_host_id test_host_id.cpp)
+    target_link_libraries(test_host_id PRIVATE
+        mm_common
+        GTest::gtest_main
+    )
+    add_test(NAME test_host_id COMMAND test_host_id)
+
+    add_executable(test_shm_ring test_shm_ring.cpp)
+    target_link_libraries(test_shm_ring PRIVATE
+        mm_transport
+        GTest::gtest_main
+    )
+    add_test(NAME test_shm_ring COMMAND test_shm_ring)
+
+    add_executable(test_shm_segment test_shm_segment.cpp)
+    target_link_libraries(test_shm_segment PRIVATE
+        mm_transport
+        GTest::gtest_main
+    )
+    add_test(NAME test_shm_segment COMMAND test_shm_segment)
+
     add_executable(test_frame_codec test_frame_codec.cpp)
     target_link_libraries(test_frame_codec PRIVATE
         mm_transport
@@ -86,6 +107,13 @@ if(GTest_FOUND)
     )
     add_test(NAME test_tcp_ephemeral_port COMMAND test_tcp_ephemeral_port)
 
+    add_executable(test_shm_sink_reader test_shm_sink_reader.cpp)
+    target_link_libraries(test_shm_sink_reader PRIVATE
+        mm_core
+        GTest::gtest_main
+    )
+    add_test(NAME test_shm_sink_reader COMMAND test_shm_sink_reader)
+
     add_executable(test_remote_sink test_remote_sink.cpp)
     target_link_libraries(test_remote_sink PRIVATE
         mm_core
@@ -106,6 +134,13 @@ if(GTest_FOUND)
         GTest::gtest_main
     )
     add_test(NAME test_tcp_pubsub COMMAND test_tcp_pubsub)
+
+    add_executable(test_shm_pubsub test_shm_pubsub.cpp)
+    target_link_libraries(test_shm_pubsub PRIVATE
+        mm_core
+        GTest::gtest_main
+    )
+    add_test(NAME test_shm_pubsub COMMAND test_shm_pubsub)
 else()
     message(WARNING "gtest not found, skipping tests")
 endif()

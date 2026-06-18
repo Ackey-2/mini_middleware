@@ -58,6 +58,7 @@ private:
     struct Remote {
         std::vector<EndpointInfo> endpoints;
         Locator locator;
+        std::string host_id;       // Phase 4:对端机器标识
         std::chrono::steady_clock::time_point last_seen;
     };
 

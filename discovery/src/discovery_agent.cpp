@@ -1,4 +1,5 @@
 #include "discovery/discovery_agent.h"
+#include "common/host_id.h"
 #include "common/logger.h"
 
 #include <unistd.h>
@@ -98,6 +99,7 @@ void DiscoveryAgent::announce() {
     ParticipantAnnouncement ann;
     ann.set_participant_id(participant_id_);
     ann.set_node_name(node_name_);
+    ann.set_host_id(local_host_id());
     *ann.mutable_data_locator() = data_locator_;
     {
         std::lock_guard<std::mutex> lock(mtx_);
@@ -114,6 +116,7 @@ void DiscoveryAgent::handle_announcement(const ParticipantAnnouncement& ann) {
     Remote& r = remotes_[ann.participant_id()];
     r.endpoints.assign(ann.endpoints().begin(), ann.endpoints().end());
     r.locator = ann.data_locator();
+    r.host_id = ann.host_id();
     r.last_seen = std::chrono::steady_clock::now();
 
     try_match(ann.participant_id(), r);
@@ -128,6 +131,7 @@ void DiscoveryAgent::try_match(uint64_t remote_id, const Remote& r) {
 
     auto matches = match_endpoints(local, remote_id, r.locator, r.endpoints);
     for (auto& m : matches) {
+        m.remote_host_id = r.host_id;   // 供数据面判定同机/跨机
         std::string key = match_key(m);
         if (active_matches_.find(key) == active_matches_.end()) {
             active_matches_[key] = m;

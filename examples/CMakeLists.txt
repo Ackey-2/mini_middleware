@@ -23,3 +23,6 @@ target_link_libraries(discovery_demo PRIVATE mm_core)
 
 add_executable(tcp_pubsub_demo tcp_pubsub_demo.cpp)
 target_link_libraries(tcp_pubsub_demo PRIVATE mm_core)
+
+add_executable(shm_pubsub_demo shm_pubsub_demo.cpp)
+target_link_libraries(shm_pubsub_demo PRIVATE mm_core)

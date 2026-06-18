@@ -21,7 +21,8 @@ namespace mm {
 // ═══════════════════════════════════════════════════════════════
 class Node {
 public:
-    explicit Node(std::string name);
+    // enable_shm=false 强制同机也走 TCP(用于测试 TCP 路径 / 排障)。
+    explicit Node(std::string name, bool enable_shm = true);
 
     Node(const Node&) = delete;
     Node& operator=(const Node&) = delete;

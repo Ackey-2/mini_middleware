@@ -31,7 +31,8 @@ private:
 
 static MatchInfo make_match(EndpointInfo::Kind local_kind, const std::string& topic,
                             const std::string& type, uint64_t remote_pid,
-                            const std::string& ip, uint16_t port) {
+                            const std::string& ip, uint16_t port,
+                            const std::string& remote_host_id = "") {
     MatchInfo mi;
     mi.local.set_kind(local_kind);
     mi.local.set_topic(topic);
@@ -43,6 +44,7 @@ static MatchInfo make_match(EndpointInfo::Kind local_kind, const std::string& to
     mi.remote_participant_id = remote_pid;
     mi.remote_locator.set_ip(ip);
     mi.remote_locator.set_port(port);
+    mi.remote_host_id = remote_host_id;
     return mi;
 }
 
@@ -77,6 +79,49 @@ TEST(DataPlane, PublisherSideSendsToReceiver) {
 
     // unmatch 后 RemoteSink 已撤销:新内容不应再到达
     bus_pub->publish("/chat", "mm.StringMsg", "AFTER");
+    std::this_thread::sleep_for(150ms);
+    EXPECT_FALSE(sink->saw("AFTER"));
+}
+
+// 两个 DataPlane 共享同一 host_id → 走共享内存:PUBLISHER 端写 ring,
+// SUBSCRIBER 端开同名 ring 读 → deliver_inbound。不经 TCP。
+TEST(DataPlane, SameHostUsesSharedMemory) {
+    const std::string host = "unit-test-host";
+    const uint64_t pub_pid = 111, sub_pid = 222;
+    const std::string topic = "/shm_chat";
+
+    auto bus_recv = std::make_shared<LocalBus>();
+    auto sink = std::make_shared<FakeSink>();
+    bus_recv->subscribe(topic, "mm.StringMsg", sink);
+    DataPlane receiver(bus_recv, "127.0.0.1");
+    receiver.set_local_identity(sub_pid, host, /*enable_shm=*/true);
+    ASSERT_TRUE(receiver.start());
+
+    auto bus_pub = std::make_shared<LocalBus>();
+    DataPlane sender(bus_pub, "127.0.0.1");
+    sender.set_local_identity(pub_pid, host, /*enable_shm=*/true);
+    ASSERT_TRUE(sender.start());
+
+    // sender 本地 PUBLISHER ↔ 远端 SUB(同 host)
+    auto mpub = make_match(EndpointInfo::PUBLISHER, topic, "mm.StringMsg",
+                           sub_pid, "127.0.0.1", 1, host);
+    sender.handle_match(mpub);
+    // receiver 本地 SUBSCRIBER ↔ 远端 PUB(同 host)。段名由对端(发布者)id 决定。
+    auto msub = make_match(EndpointInfo::SUBSCRIBER, topic, "mm.StringMsg",
+                           pub_pid, "127.0.0.1", 2, host);
+    receiver.handle_match(msub);
+
+    for (int i = 0; i < 300 && sink->count() == 0; ++i) {
+        bus_pub->publish(topic, "mm.StringMsg", "shm-hi");
+        std::this_thread::sleep_for(10ms);
+    }
+    ASSERT_TRUE(sink->saw("shm-hi"));
+
+    std::this_thread::sleep_for(100ms);
+    sender.handle_unmatch(mpub);     // 撤销写者 + unlink 段
+    receiver.handle_unmatch(msub);   // 撤销读者
+
+    bus_pub->publish(topic, "mm.StringMsg", "AFTER");   // 写者已撤,无人写
     std::this_thread::sleep_for(150ms);
     EXPECT_FALSE(sink->saw("AFTER"));
 }
