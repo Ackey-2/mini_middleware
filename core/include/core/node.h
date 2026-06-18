@@ -28,22 +28,26 @@ public:
     Node& operator=(const Node&) = delete;
 
     template <typename T>
-    std::shared_ptr<Publisher<T>> create_publisher(const std::string& topic) {
-        auto pub = std::make_shared<Publisher<T>>(topic, bus_);
+    std::shared_ptr<Publisher<T>> create_publisher(const std::string& topic,
+                                                   const Qos& qos = {}) {
+        auto pub = std::make_shared<Publisher<T>>(topic, bus_, qos);
         entities_.push_back(pub);
         discovery_->add_endpoint(EndpointInfo::PUBLISHER, topic,
-                                 T().GetDescriptor()->full_name());
+                                 T().GetDescriptor()->full_name(),
+                                 static_cast<uint32_t>(qos.reliability));
         return pub;
     }
 
     template <typename T>
     std::shared_ptr<Subscriber<T>> create_subscriber(
-        const std::string& topic, typename Subscriber<T>::Callback cb) {
-        auto sub = std::make_shared<Subscriber<T>>(topic, std::move(cb));
+        const std::string& topic, typename Subscriber<T>::Callback cb,
+        const Qos& qos = {}) {
+        auto sub = std::make_shared<Subscriber<T>>(topic, std::move(cb), qos);
         bus_->subscribe(topic, T().GetDescriptor()->full_name(), sub);
         entities_.push_back(sub);
         discovery_->add_endpoint(EndpointInfo::SUBSCRIBER, topic,
-                                 T().GetDescriptor()->full_name());
+                                 T().GetDescriptor()->full_name(),
+                                 static_cast<uint32_t>(qos.reliability));
         return sub;
     }
 

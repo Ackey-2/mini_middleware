@@ -3,6 +3,7 @@
 #include "core/local_bus.h"
 #include "common/blocking_queue.h"
 #include "common/logger.h"
+#include "common/qos.h"
 
 #include <functional>
 #include <string>
@@ -22,8 +23,12 @@ class Subscriber : public ISink {
 public:
     using Callback = std::function<void(const MessageT&)>;
 
-    Subscriber(std::string topic, Callback cb)
-        : topic_(std::move(topic)), cb_(std::move(cb)) {
+    // qos.history==KEEP_LAST → 队列上限 = depth(满时丢最旧);KEEP_ALL → 无界。
+    Subscriber(std::string topic, Callback cb, const Qos& qos = {})
+        : topic_(std::move(topic)),
+          cb_(std::move(cb)),
+          qos_(qos),
+          queue_(qos.history == Qos::History::KEEP_LAST ? qos.depth : 0) {
         worker_ = std::thread(&Subscriber::run, this);
     }
 
@@ -54,6 +59,7 @@ private:
 
     std::string topic_;
     Callback cb_;
+    Qos qos_;
     BlockingQueue<std::string> queue_;
     std::thread worker_;
 };

@@ -2,6 +2,7 @@
 
 #include "core/local_bus.h"
 #include "common/logger.h"
+#include "common/qos.h"
 
 #include <memory>
 #include <string>
@@ -17,13 +18,16 @@ namespace mm {
 template <typename MessageT>
 class Publisher {
 public:
-    Publisher(std::string topic, std::shared_ptr<LocalBus> bus)
+    Publisher(std::string topic, std::shared_ptr<LocalBus> bus, const Qos& qos = {})
         : topic_(std::move(topic)),
           type_name_(MessageT().GetDescriptor()->full_name()),
-          bus_(std::move(bus)) {
+          bus_(std::move(bus)),
+          qos_(qos) {
         bus_->register_publisher(topic_, type_name_);
         LOG_INFO("Publisher created: topic={} type={}", topic_, type_name_);
     }
+
+    const Qos& qos() const { return qos_; }
 
     Publisher(const Publisher&) = delete;
     Publisher& operator=(const Publisher&) = delete;
@@ -44,6 +48,7 @@ private:
     std::string topic_;
     std::string type_name_;
     std::shared_ptr<LocalBus> bus_;
+    Qos qos_;
 };
 
 }  // namespace mm
