@@ -100,6 +100,13 @@ if(GTest_FOUND)
     )
     add_test(NAME test_endpoint_matcher COMMAND test_endpoint_matcher)
 
+    add_executable(test_qos_match test_qos_match.cpp)
+    target_link_libraries(test_qos_match PRIVATE
+        mm_discovery
+        GTest::gtest_main
+    )
+    add_test(NAME test_qos_match COMMAND test_qos_match)
+
     add_executable(test_discovery_agent test_discovery_agent.cpp)
     target_link_libraries(test_discovery_agent PRIVATE
         mm_discovery

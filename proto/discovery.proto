@@ -17,6 +17,7 @@ message EndpointInfo {
     Kind kind = 1;
     string topic = 2;
     string type_name = 3;
+    uint32 reliability = 4;   // Phase 5 QoS:0=BEST_EFFORT 1=RELIABLE(参与发现期协商)
 }
 
 // 周期性多播公告:合并了 DDS 的 SPDP(参与者) + SEDP(端点)
