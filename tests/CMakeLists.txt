@@ -9,6 +9,13 @@ if(GTest_FOUND)
     )
     add_test(NAME test_host_id COMMAND test_host_id)
 
+    add_executable(test_shm_ring test_shm_ring.cpp)
+    target_link_libraries(test_shm_ring PRIVATE
+        mm_transport
+        GTest::gtest_main
+    )
+    add_test(NAME test_shm_ring COMMAND test_shm_ring)
+
     add_executable(test_frame_codec test_frame_codec.cpp)
     target_link_libraries(test_frame_codec PRIVATE
         mm_transport
