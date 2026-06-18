@@ -169,6 +169,13 @@ if(GTest_FOUND)
         GTest::gtest_main
     )
     add_test(NAME test_shm_pubsub COMMAND test_shm_pubsub)
+
+    add_executable(test_qos_pubsub test_qos_pubsub.cpp)
+    target_link_libraries(test_qos_pubsub PRIVATE
+        mm_core
+        GTest::gtest_main
+    )
+    add_test(NAME test_qos_pubsub COMMAND test_qos_pubsub)
 else()
     message(WARNING "gtest not found, skipping tests")
 endif()
