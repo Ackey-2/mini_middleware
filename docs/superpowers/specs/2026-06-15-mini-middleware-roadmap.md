@@ -55,7 +55,7 @@
 | 2 | 发现协议 | UDP 多播 SPDP/SEDP-lite、参与者/端点广播、topic+QoS 匹配、心跳超时 | ~1400 | 4.2k | ✅ |
 | 3 | TCP 数据面 P2P | 连接管理器、按匹配建通道、与发现联动自动连、跨机 pub/sub 跑通 | ~900 | 5.1k | ✅ |
 | 4 | 共享内存零拷贝 + 无锁环形队列 ⭐ | SHM 段管理、无锁环形 buffer、同机自动切换 SHM | ~1500 | 6.6k | ✅ |
-| 5 | QoS | RELIABLE/BEST_EFFORT、KEEP_LAST N 历史、队列深度、发现期 QoS 协商 | ~500 | 7.1k | |
+| 5 | QoS | RELIABLE/BEST_EFFORT、KEEP_LAST N 历史、队列深度、发现期 QoS 协商 | ~500 | 7.1k | ✅ |
 | 6 | Service/RPC | 请求-响应、服务发现、client/server 桩 | ~700 | 7.8k | |
 | 7 | CLI 工具 + 配置 | `mm topic list/echo/hz`、YAML 配置加载 | ~900 | 8.7k | |
 | 8 | Benchmark + 测试 + 文档 | TCP vs SHM 延迟/吞吐对比、单测/集成测试、README + 架构图 | ~1200 | 9.9k | |
