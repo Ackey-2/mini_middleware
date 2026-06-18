@@ -1,4 +1,5 @@
 #include "discovery/discovery_agent.h"
+#include "common/host_id.h"
 #include <gtest/gtest.h>
 #include <atomic>
 #include <chrono>
@@ -44,6 +45,9 @@ TEST(DiscoveryAgent, TwoAgentsMatch) {
     EXPECT_EQ(a_seen.remote.kind(), EndpointInfo::SUBSCRIBER);
     EXPECT_EQ(a_seen.remote_locator.port(), 5002u);
     EXPECT_EQ(a_seen.remote_participant_id, b.participant_id());
+    // Phase 4:同机两 agent,匹配应带上对端 host_id,且等于本机 host_id。
+    EXPECT_FALSE(a_seen.remote_host_id.empty());
+    EXPECT_EQ(a_seen.remote_host_id, local_host_id());
 
     a.stop();
     b.stop();

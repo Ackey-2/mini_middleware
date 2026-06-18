@@ -3,6 +3,7 @@
 #include "discovery.pb.h"
 
 #include <cstdint>
+#include <string>
 #include <vector>
 
 namespace mm {
@@ -13,6 +14,7 @@ struct MatchInfo {
     EndpointInfo remote;
     Locator remote_locator;
     uint64_t remote_participant_id = 0;
+    std::string remote_host_id;   // Phase 4:远端机器标识,数据面据此判定同机/跨机
 };
 
 // 本地端点 × 远端端点,返回所有匹配对。
