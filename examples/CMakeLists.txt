@@ -26,3 +26,6 @@ target_link_libraries(tcp_pubsub_demo PRIVATE mm_core)
 
 add_executable(shm_pubsub_demo shm_pubsub_demo.cpp)
 target_link_libraries(shm_pubsub_demo PRIVATE mm_core)
+
+add_executable(qos_demo qos_demo.cpp)
+target_link_libraries(qos_demo PRIVATE mm_core)

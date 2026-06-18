@@ -9,6 +9,20 @@ if(GTest_FOUND)
     )
     add_test(NAME test_host_id COMMAND test_host_id)
 
+    add_executable(test_qos test_qos.cpp)
+    target_link_libraries(test_qos PRIVATE
+        mm_common
+        GTest::gtest_main
+    )
+    add_test(NAME test_qos COMMAND test_qos)
+
+    add_executable(test_blocking_queue_capacity test_blocking_queue_capacity.cpp)
+    target_link_libraries(test_blocking_queue_capacity PRIVATE
+        mm_common
+        GTest::gtest_main
+    )
+    add_test(NAME test_blocking_queue_capacity COMMAND test_blocking_queue_capacity)
+
     add_executable(test_shm_ring test_shm_ring.cpp)
     target_link_libraries(test_shm_ring PRIVATE
         mm_transport
@@ -86,6 +100,13 @@ if(GTest_FOUND)
     )
     add_test(NAME test_endpoint_matcher COMMAND test_endpoint_matcher)
 
+    add_executable(test_qos_match test_qos_match.cpp)
+    target_link_libraries(test_qos_match PRIVATE
+        mm_discovery
+        GTest::gtest_main
+    )
+    add_test(NAME test_qos_match COMMAND test_qos_match)
+
     add_executable(test_discovery_agent test_discovery_agent.cpp)
     target_link_libraries(test_discovery_agent PRIVATE
         mm_discovery
@@ -128,6 +149,13 @@ if(GTest_FOUND)
     )
     add_test(NAME test_data_plane COMMAND test_data_plane)
 
+    add_executable(test_qos_routing test_qos_routing.cpp)
+    target_link_libraries(test_qos_routing PRIVATE
+        mm_core
+        GTest::gtest_main
+    )
+    add_test(NAME test_qos_routing COMMAND test_qos_routing)
+
     add_executable(test_tcp_pubsub test_tcp_pubsub.cpp)
     target_link_libraries(test_tcp_pubsub PRIVATE
         mm_core
@@ -141,6 +169,13 @@ if(GTest_FOUND)
         GTest::gtest_main
     )
     add_test(NAME test_shm_pubsub COMMAND test_shm_pubsub)
+
+    add_executable(test_qos_pubsub test_qos_pubsub.cpp)
+    target_link_libraries(test_qos_pubsub PRIVATE
+        mm_core
+        GTest::gtest_main
+    )
+    add_test(NAME test_qos_pubsub COMMAND test_qos_pubsub)
 else()
     message(WARNING "gtest not found, skipping tests")
 endif()
