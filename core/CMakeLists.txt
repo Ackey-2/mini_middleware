@@ -3,6 +3,7 @@ add_library(mm_core STATIC
     src/local_bus.cpp
     src/node.cpp
     src/data_plane.cpp
+    src/shm_reader.cpp
 )
 
 target_include_directories(mm_core PUBLIC

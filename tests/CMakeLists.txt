@@ -107,6 +107,13 @@ if(GTest_FOUND)
     )
     add_test(NAME test_tcp_ephemeral_port COMMAND test_tcp_ephemeral_port)
 
+    add_executable(test_shm_sink_reader test_shm_sink_reader.cpp)
+    target_link_libraries(test_shm_sink_reader PRIVATE
+        mm_core
+        GTest::gtest_main
+    )
+    add_test(NAME test_shm_sink_reader COMMAND test_shm_sink_reader)
+
     add_executable(test_remote_sink test_remote_sink.cpp)
     target_link_libraries(test_remote_sink PRIVATE
         mm_core
