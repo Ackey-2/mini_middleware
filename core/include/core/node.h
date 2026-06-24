@@ -10,6 +10,7 @@
 #include "discovery/discovery_agent.h"
 #include "rpc.pb.h"
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <functional>
@@ -17,6 +18,12 @@
 #include <vector>
 
 namespace mm {
+
+struct NodeOptions {
+    bool enable_shm = true;
+    std::string discovery_group = "239.255.0.1";
+    uint16_t discovery_port = 7400;
+};
 
 // ═══════════════════════════════════════════════════════════════
 // Node(Participant):每进程一个。
@@ -28,6 +35,7 @@ class Node {
 public:
     // enable_shm=false 强制同机也走 TCP(用于测试 TCP 路径 / 排障)。
     explicit Node(std::string name, bool enable_shm = true);
+    explicit Node(std::string name, const NodeOptions& options);
 
     Node(const Node&) = delete;
     Node& operator=(const Node&) = delete;

@@ -116,11 +116,17 @@ void DiscoveryAgent::announce() {
 void DiscoveryAgent::handle_announcement(const ParticipantAnnouncement& ann) {
     if (ann.participant_id() == participant_id_) return;   // 自己,忽略
 
-    Remote& r = remotes_[ann.participant_id()];
-    r.endpoints.assign(ann.endpoints().begin(), ann.endpoints().end());
-    r.locator = ann.data_locator();
-    r.host_id = ann.host_id();
-    r.last_seen = std::chrono::steady_clock::now();
+    Remote r;
+    {
+        std::lock_guard<std::mutex> lock(mtx_);
+        Remote& stored = remotes_[ann.participant_id()];
+        stored.node_name = ann.node_name();
+        stored.endpoints.assign(ann.endpoints().begin(), ann.endpoints().end());
+        stored.locator = ann.data_locator();
+        stored.host_id = ann.host_id();
+        stored.last_seen = std::chrono::steady_clock::now();
+        r = stored;
+    }
 
     try_match(ann.participant_id(), r);
 }
@@ -149,35 +155,79 @@ void DiscoveryAgent::try_match(uint64_t remote_id, const Remote& r) {
 }
 
 void DiscoveryAgent::rematch_all() {
-    for (const auto& kv : remotes_) {
+    std::map<uint64_t, Remote> remotes;
+    {
+        std::lock_guard<std::mutex> lock(mtx_);
+        remotes = remotes_;
+    }
+    for (const auto& kv : remotes) {
         try_match(kv.first, kv.second);
     }
 }
 
 void DiscoveryAgent::reap_dead() {
     auto now = std::chrono::steady_clock::now();
-    for (auto it = remotes_.begin(); it != remotes_.end();) {
-        if (now - it->second.last_seen > liveliness_timeout_.load()) {
-            uint64_t dead_id = it->first;
-            for (auto mit = active_matches_.begin(); mit != active_matches_.end();) {
-                if (mit->second.remote_participant_id == dead_id) {
-                    MatchCallback cb;
-                    {
-                        std::lock_guard<std::mutex> lock(cb_mtx_);
-                        cb = on_unmatch_;
-                    }
-                    if (cb) cb(mit->second);
-                    mit = active_matches_.erase(mit);
-                } else {
-                    ++mit;
-                }
+    std::vector<uint64_t> dead_ids;
+    {
+        std::lock_guard<std::mutex> lock(mtx_);
+        for (auto it = remotes_.begin(); it != remotes_.end();) {
+            if (now - it->second.last_seen > liveliness_timeout_.load()) {
+                dead_ids.push_back(it->first);
+                it = remotes_.erase(it);
+            } else {
+                ++it;
             }
-            LOG_INFO("discovery: participant {} timed out", dead_id);
-            it = remotes_.erase(it);
-        } else {
-            ++it;
         }
     }
+
+    for (uint64_t dead_id : dead_ids) {
+        for (auto mit = active_matches_.begin(); mit != active_matches_.end();) {
+            if (mit->second.remote_participant_id == dead_id) {
+                MatchCallback cb;
+                {
+                    std::lock_guard<std::mutex> lock(cb_mtx_);
+                    cb = on_unmatch_;
+                }
+                if (cb) cb(mit->second);
+                mit = active_matches_.erase(mit);
+            } else {
+                ++mit;
+            }
+        }
+        LOG_INFO("discovery: participant {} timed out", dead_id);
+    }
+}
+
+std::vector<DiscoveredEndpoint> DiscoveryAgent::snapshot_endpoints() const {
+    std::vector<DiscoveredEndpoint> endpoints;
+    std::lock_guard<std::mutex> lock(mtx_);
+
+    endpoints.reserve(local_endpoints_.size());
+    for (const auto& endpoint : local_endpoints_) {
+        DiscoveredEndpoint row;
+        row.participant_id = participant_id_;
+        row.node_name = node_name_;
+        row.endpoint = endpoint;
+        row.locator = data_locator_;
+        row.host_id = local_host_id();
+        row.local = true;
+        endpoints.push_back(std::move(row));
+    }
+
+    for (const auto& [participant_id, remote] : remotes_) {
+        for (const auto& endpoint : remote.endpoints) {
+            DiscoveredEndpoint row;
+            row.participant_id = participant_id;
+            row.node_name = remote.node_name;
+            row.endpoint = endpoint;
+            row.locator = remote.locator;
+            row.host_id = remote.host_id;
+            row.local = false;
+            endpoints.push_back(std::move(row));
+        }
+    }
+
+    return endpoints;
 }
 
 std::string DiscoveryAgent::match_key(const MatchInfo& m) {

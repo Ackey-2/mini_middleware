@@ -177,6 +177,13 @@ if(GTest_FOUND)
     )
     add_test(NAME test_node_discovery COMMAND test_node_discovery)
 
+    add_executable(test_discovery_snapshot test_discovery_snapshot.cpp)
+    target_link_libraries(test_discovery_snapshot PRIVATE
+        mm_core
+        GTest::gtest_main
+    )
+    add_test(NAME test_discovery_snapshot COMMAND test_discovery_snapshot)
+
     add_executable(test_tcp_ephemeral_port test_tcp_ephemeral_port.cpp)
     target_link_libraries(test_tcp_ephemeral_port PRIVATE
         mm_transport

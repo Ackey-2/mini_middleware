@@ -16,6 +16,15 @@
 
 namespace mm {
 
+struct DiscoveredEndpoint {
+    uint64_t participant_id = 0;
+    std::string node_name;
+    EndpointInfo endpoint;
+    Locator locator;
+    std::string host_id;
+    bool local = false;
+};
+
 // ═══════════════════════════════════════════════════════════════
 // DiscoveryAgent:一个进程的发现代理。
 // 单后台线程:周期性多播本节点公告 + 收远端公告 + 算匹配 + 存活超时。
@@ -54,10 +63,12 @@ public:
     void stop();
 
     uint64_t participant_id() const { return participant_id_; }
+    std::vector<DiscoveredEndpoint> snapshot_endpoints() const;
 
 private:
     // 仅后台线程访问:
     struct Remote {
+        std::string node_name;
         std::vector<EndpointInfo> endpoints;
         Locator locator;
         std::string host_id;       // Phase 4:对端机器标识
@@ -78,7 +89,7 @@ private:
     uint64_t participant_id_;
     UdpMulticast mc_;
 
-    std::mutex mtx_;                                       // 保护 local_endpoints_
+    mutable std::mutex mtx_;                               // 保护 local_endpoints_ / remotes_
     std::vector<EndpointInfo> local_endpoints_;
     // 本地端点有变更,后台线程下一轮需对所有已知远端重算匹配。
     std::atomic<bool> endpoints_dirty_{false};
