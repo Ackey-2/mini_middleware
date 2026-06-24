@@ -37,7 +37,8 @@ public:
     // 与之匹配,后台线程会立即触发 on_match,无需等待对端重新公告。
     // reliability:0=BEST_EFFORT 1=RELIABLE,参与发现期 QoS 协商。
     void add_endpoint(EndpointInfo::Kind kind, const std::string& topic,
-                      const std::string& type_name, uint32_t reliability = 0);
+                      const std::string& type_name, uint32_t reliability = 0,
+                      const std::string& response_type_name = "");
 
     // 注册匹配/解除匹配回调。可在 start() 前或后随时设置——访问由 cb_mtx_ 同步,
     // 无数据竞争。回调在后台线程触发。

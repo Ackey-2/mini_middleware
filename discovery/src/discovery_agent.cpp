@@ -26,13 +26,15 @@ DiscoveryAgent::DiscoveryAgent(std::string node_name, Locator data_locator,
 DiscoveryAgent::~DiscoveryAgent() { stop(); }
 
 void DiscoveryAgent::add_endpoint(EndpointInfo::Kind kind, const std::string& topic,
-                                  const std::string& type_name, uint32_t reliability) {
+                                  const std::string& type_name, uint32_t reliability,
+                                  const std::string& response_type_name) {
     std::lock_guard<std::mutex> lock(mtx_);
     EndpointInfo e;
     e.set_kind(kind);
     e.set_topic(topic);
     e.set_type_name(type_name);
     e.set_reliability(reliability);
+    if (!response_type_name.empty()) e.set_response_type_name(response_type_name);
     local_endpoints_.push_back(std::move(e));
     endpoints_dirty_.store(true);   // 让后台线程下一轮对已知远端重算匹配
 }

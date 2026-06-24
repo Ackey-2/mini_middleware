@@ -104,6 +104,10 @@ void DataPlane::on_inbound(const std::string& payload) {
 void DataPlane::handle_match(const MatchInfo& m) {
     std::lock_guard<std::mutex> lock(mtx_);
     if (stopped_) return;
+    if (!((m.local.kind() == EndpointInfo::PUBLISHER && m.remote.kind() == EndpointInfo::SUBSCRIBER) ||
+          (m.local.kind() == EndpointInfo::SUBSCRIBER && m.remote.kind() == EndpointInfo::PUBLISHER))) {
+        return;
+    }
     if (m.local.kind() == EndpointInfo::PUBLISHER) {
         if (use_shm(m)) shm_pub_match(m);     // 同机 + BEST_EFFORT → SHM 写者
         else            tcp_pub_match(m);     // 跨机 或 RELIABLE → TCP 主动连
@@ -116,6 +120,10 @@ void DataPlane::handle_match(const MatchInfo& m) {
 void DataPlane::handle_unmatch(const MatchInfo& m) {
     std::lock_guard<std::mutex> lock(mtx_);
     if (stopped_) return;
+    if (!((m.local.kind() == EndpointInfo::PUBLISHER && m.remote.kind() == EndpointInfo::SUBSCRIBER) ||
+          (m.local.kind() == EndpointInfo::SUBSCRIBER && m.remote.kind() == EndpointInfo::PUBLISHER))) {
+        return;
+    }
     if (m.local.kind() == EndpointInfo::PUBLISHER) {
         if (use_shm(m)) shm_pub_unmatch(m);
         else            tcp_pub_unmatch(m);

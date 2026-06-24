@@ -51,6 +51,34 @@ if(GTest_FOUND)
     )
     add_test(NAME test_local_bus COMMAND test_local_bus)
 
+    add_executable(test_rpc_topics test_rpc_topics.cpp)
+    target_link_libraries(test_rpc_topics PRIVATE
+        mm_core
+        GTest::gtest_main
+    )
+    add_test(NAME test_rpc_topics COMMAND test_rpc_topics)
+
+    add_executable(test_rpc_local test_rpc_local.cpp)
+    target_link_libraries(test_rpc_local PRIVATE
+        mm_core
+        GTest::gtest_main
+    )
+    add_test(NAME test_rpc_local COMMAND test_rpc_local)
+
+    add_executable(test_rpc_timeout test_rpc_timeout.cpp)
+    target_link_libraries(test_rpc_timeout PRIVATE
+        mm_core
+        GTest::gtest_main
+    )
+    add_test(NAME test_rpc_timeout COMMAND test_rpc_timeout)
+
+    add_executable(test_rpc_pubsub test_rpc_pubsub.cpp)
+    target_link_libraries(test_rpc_pubsub PRIVATE
+        mm_core
+        GTest::gtest_main
+    )
+    add_test(NAME test_rpc_pubsub COMMAND test_rpc_pubsub)
+
     add_executable(test_subscriber test_subscriber.cpp)
     target_link_libraries(test_subscriber PRIVATE
         mm_core
@@ -85,6 +113,13 @@ if(GTest_FOUND)
         GTest::gtest_main
     )
     add_test(NAME test_data_message COMMAND test_data_message)
+
+    add_executable(test_rpc_proto test_rpc_proto.cpp)
+    target_link_libraries(test_rpc_proto PRIVATE
+        mm_proto
+        GTest::gtest_main
+    )
+    add_test(NAME test_rpc_proto COMMAND test_rpc_proto)
 
     add_executable(test_udp_multicast test_udp_multicast.cpp)
     target_link_libraries(test_udp_multicast PRIVATE

@@ -29,3 +29,6 @@ target_link_libraries(shm_pubsub_demo PRIVATE mm_core)
 
 add_executable(qos_demo qos_demo.cpp)
 target_link_libraries(qos_demo PRIVATE mm_core)
+
+add_executable(rpc_demo rpc_demo.cpp)
+target_link_libraries(rpc_demo PRIVATE mm_core)

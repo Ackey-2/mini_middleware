@@ -13,11 +13,14 @@ message EndpointInfo {
     enum Kind {
         PUBLISHER = 0;
         SUBSCRIBER = 1;
+        SERVICE = 2;
+        CLIENT = 3;
     }
     Kind kind = 1;
     string topic = 2;
     string type_name = 3;
     uint32 reliability = 4;   // Phase 5 QoS:0=BEST_EFFORT 1=RELIABLE(参与发现期协商)
+    string response_type_name = 5; // Phase 6 RPC: response type for SERVICE/CLIENT
 }
 
 // 周期性多播公告:合并了 DDS 的 SPDP(参与者) + SEDP(端点)
