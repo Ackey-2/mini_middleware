@@ -23,6 +23,20 @@ if(GTest_FOUND)
     )
     add_test(NAME test_config_defaults COMMAND test_config_defaults)
 
+    add_executable(test_config_parse test_config_parse.cpp)
+    target_link_libraries(test_config_parse PRIVATE
+        mm_config
+        GTest::gtest_main
+    )
+    add_test(NAME test_config_parse COMMAND test_config_parse)
+
+    add_executable(test_config_errors test_config_errors.cpp)
+    target_link_libraries(test_config_errors PRIVATE
+        mm_config
+        GTest::gtest_main
+    )
+    add_test(NAME test_config_errors COMMAND test_config_errors)
+
     add_executable(test_blocking_queue_capacity test_blocking_queue_capacity.cpp)
     target_link_libraries(test_blocking_queue_capacity PRIVATE
         mm_common
