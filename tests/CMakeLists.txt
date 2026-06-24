@@ -37,6 +37,13 @@ if(GTest_FOUND)
     )
     add_test(NAME test_config_errors COMMAND test_config_errors)
 
+    add_executable(test_cli_args test_cli_args.cpp)
+    target_link_libraries(test_cli_args PRIVATE
+        mm_cli_lib
+        GTest::gtest_main
+    )
+    add_test(NAME test_cli_args COMMAND test_cli_args)
+
     add_executable(test_blocking_queue_capacity test_blocking_queue_capacity.cpp)
     target_link_libraries(test_blocking_queue_capacity PRIVATE
         mm_common
