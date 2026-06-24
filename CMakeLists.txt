@@ -32,6 +32,7 @@ find_package(Protobuf REQUIRED)        # Day 5 用过
 # ── 子模块 ──────────────────────────────────────────────────
 # 顺序很重要:被依赖的先 add
 add_subdirectory(common)               # 工具库,谁都依赖它
+add_subdirectory(config)               # CLI/config 默认配置
 add_subdirectory(proto)                # 消息定义
 add_subdirectory(transport)            # 传输层
 add_subdirectory(discovery)            # 发现层

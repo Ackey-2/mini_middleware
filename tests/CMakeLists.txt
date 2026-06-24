@@ -16,6 +16,13 @@ if(GTest_FOUND)
     )
     add_test(NAME test_qos COMMAND test_qos)
 
+    add_executable(test_config_defaults test_config_defaults.cpp)
+    target_link_libraries(test_config_defaults PRIVATE
+        mm_config
+        GTest::gtest_main
+    )
+    add_test(NAME test_config_defaults COMMAND test_config_defaults)
+
     add_executable(test_blocking_queue_capacity test_blocking_queue_capacity.cpp)
     target_link_libraries(test_blocking_queue_capacity PRIVATE
         mm_common
