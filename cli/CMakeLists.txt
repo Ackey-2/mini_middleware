@@ -1,6 +1,7 @@
 add_library(mm_cli_lib STATIC
     src/args.cpp
     src/message_format.cpp
+    src/topic_commands.cpp
 )
 
 target_include_directories(mm_cli_lib PUBLIC

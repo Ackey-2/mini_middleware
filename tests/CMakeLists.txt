@@ -51,6 +51,27 @@ if(GTest_FOUND)
     )
     add_test(NAME test_message_format COMMAND test_message_format)
 
+    add_executable(test_cli_topic_list test_cli_topic_list.cpp)
+    target_link_libraries(test_cli_topic_list PRIVATE
+        mm_cli_lib
+        GTest::gtest_main
+    )
+    add_test(NAME test_cli_topic_list COMMAND test_cli_topic_list)
+
+    add_executable(test_cli_topic_echo test_cli_topic_echo.cpp)
+    target_link_libraries(test_cli_topic_echo PRIVATE
+        mm_cli_lib
+        GTest::gtest_main
+    )
+    add_test(NAME test_cli_topic_echo COMMAND test_cli_topic_echo)
+
+    add_executable(test_cli_topic_hz test_cli_topic_hz.cpp)
+    target_link_libraries(test_cli_topic_hz PRIVATE
+        mm_cli_lib
+        GTest::gtest_main
+    )
+    add_test(NAME test_cli_topic_hz COMMAND test_cli_topic_hz)
+
     add_executable(test_blocking_queue_capacity test_blocking_queue_capacity.cpp)
     target_link_libraries(test_blocking_queue_capacity PRIVATE
         mm_common
