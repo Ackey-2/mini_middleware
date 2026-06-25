@@ -1,4 +1,5 @@
 #include "cli/args.h"
+#include "cli/message_format.h"
 #include "cli/topic_commands.h"
 #include "config/config.h"
 #include "core/node.h"
@@ -18,6 +19,17 @@ int main(int argc, char** argv) {
     if (cmd.kind == mm::CliCommandKind::ERROR) {
         std::cerr << cmd.message;
         return cmd.exit_code;
+    }
+
+    if ((cmd.kind == mm::CliCommandKind::TOPIC_ECHO ||
+         cmd.kind == mm::CliCommandKind::TOPIC_HZ) &&
+        !mm::is_supported_message_type(cmd.type_name)) {
+        std::cerr << "unsupported message type: " << cmd.type_name << '\n'
+                  << "supported types:\n";
+        for (const auto& type : mm::supported_message_types()) {
+            std::cerr << "  " << type << '\n';
+        }
+        return 2;
     }
 
     mm::MiddlewareConfig cfg = mm::default_config();
