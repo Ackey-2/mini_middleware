@@ -13,3 +13,11 @@ target_link_libraries(mm_cli_lib PUBLIC
     mm_config
     mm_proto
 )
+
+add_executable(mm
+    src/main.cpp
+)
+
+target_link_libraries(mm PRIVATE
+    mm_cli_lib
+)
