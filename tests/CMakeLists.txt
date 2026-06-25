@@ -44,6 +44,13 @@ if(GTest_FOUND)
     )
     add_test(NAME test_cli_args COMMAND test_cli_args)
 
+    add_executable(test_message_format test_message_format.cpp)
+    target_link_libraries(test_message_format PRIVATE
+        mm_cli_lib
+        GTest::gtest_main
+    )
+    add_test(NAME test_message_format COMMAND test_message_format)
+
     add_executable(test_blocking_queue_capacity test_blocking_queue_capacity.cpp)
     target_link_libraries(test_blocking_queue_capacity PRIVATE
         mm_common
