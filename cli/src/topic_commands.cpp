@@ -9,6 +9,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <iomanip>
+#include <memory>
 #include <mutex>
 #include <ostream>
 #include <sstream>
@@ -54,26 +55,46 @@ std::string serialize_message(const MessageT& msg) {
     return bytes;
 }
 
-template <typename MessageT>
-int run_echo_for(Node& node, const std::string& topic, const std::string& type_name,
-                 int count, std::ostream& out) {
+struct EchoState {
     std::mutex mutex;
     std::condition_variable cv;
     int received = 0;
+    bool done = false;
+    std::ostream* out = nullptr;
+};
+
+struct HzState {
+    std::mutex mutex;
+    std::condition_variable cv;
+    std::vector<std::chrono::steady_clock::time_point> timestamps;
+    bool done = false;
+};
+
+template <typename MessageT>
+int run_echo_for(Node& node, const std::string& topic, const std::string& type_name,
+                 int count, std::ostream& out) {
+    auto state = std::make_shared<EchoState>();
+    state->out = &out;
 
     auto sub = node.create_subscriber<MessageT>(
         topic,
-        [&](const MessageT& msg) {
+        [state, type_name, count](const MessageT& msg) {
             auto formatted = format_message(type_name, serialize_message(msg));
-            std::lock_guard<std::mutex> lock(mutex);
-            if (formatted.ok) {
-                out << formatted.text << '\n';
-            } else {
-                out << formatted.error << '\n';
+            std::lock_guard<std::mutex> lock(state->mutex);
+            if (state->done) {
+                return;
             }
-            out << "---\n";
-            ++received;
-            cv.notify_one();
+            if (formatted.ok) {
+                *state->out << formatted.text << '\n';
+            } else {
+                *state->out << formatted.error << '\n';
+            }
+            *state->out << "---\n";
+            ++state->received;
+            if (count > 0 && state->received >= count) {
+                state->done = true;
+            }
+            state->cv.notify_one();
         });
 
     if (count <= 0) {
@@ -82,24 +103,31 @@ int run_echo_for(Node& node, const std::string& topic, const std::string& type_n
         }
     }
 
-    std::unique_lock<std::mutex> lock(mutex);
-    cv.wait(lock, [&] { return received >= count; });
+    {
+        std::unique_lock<std::mutex> lock(state->mutex);
+        state->cv.wait(lock, [&] { return state->done; });
+        state->done = true;
+    }
     return 0;
 }
 
 template <typename MessageT>
 int run_hz_for(Node& node, const std::string& topic, int window, int count,
                std::ostream& out) {
-    std::mutex mutex;
-    std::condition_variable cv;
-    std::vector<std::chrono::steady_clock::time_point> timestamps;
+    auto state = std::make_shared<HzState>();
 
     auto sub = node.create_subscriber<MessageT>(
         topic,
-        [&](const MessageT&) {
-            std::lock_guard<std::mutex> lock(mutex);
-            timestamps.push_back(std::chrono::steady_clock::now());
-            cv.notify_one();
+        [state, count](const MessageT&) {
+            std::lock_guard<std::mutex> lock(state->mutex);
+            if (state->done) {
+                return;
+            }
+            state->timestamps.push_back(std::chrono::steady_clock::now());
+            if (count > 0 && static_cast<int>(state->timestamps.size()) >= count) {
+                state->done = true;
+            }
+            state->cv.notify_one();
         });
 
     if (count <= 0) {
@@ -108,18 +136,25 @@ int run_hz_for(Node& node, const std::string& topic, int window, int count,
         }
     }
 
-    std::unique_lock<std::mutex> lock(mutex);
-    cv.wait(lock, [&] { return static_cast<int>(timestamps.size()) >= count; });
+    {
+        std::unique_lock<std::mutex> lock(state->mutex);
+        state->cv.wait(lock, [&] { return state->done; });
+    }
 
-    const int bounded_window = window > 1 ? window : 2;
-    const int sample_count = std::min<int>(bounded_window, timestamps.size());
     double rate = 0.0;
-    if (sample_count >= 2) {
-        const auto first = timestamps[timestamps.size() - sample_count];
-        const auto last = timestamps.back();
-        const auto elapsed = std::chrono::duration<double>(last - first).count();
-        if (elapsed > 0.0) {
-            rate = static_cast<double>(sample_count - 1) / elapsed;
+    {
+        std::lock_guard<std::mutex> lock(state->mutex);
+        state->done = true;
+
+        const int bounded_window = window > 1 ? window : 2;
+        const int sample_count = std::min<int>(bounded_window, state->timestamps.size());
+        if (sample_count >= 2) {
+            const auto first = state->timestamps[state->timestamps.size() - sample_count];
+            const auto last = state->timestamps.back();
+            const auto elapsed = std::chrono::duration<double>(last - first).count();
+            if (elapsed > 0.0) {
+                rate = static_cast<double>(sample_count - 1) / elapsed;
+            }
         }
     }
 
