@@ -49,12 +49,48 @@ bool read_option_value(int argc, char** argv, int index, std::string* value, Cli
     return true;
 }
 
+bool is_option_token(const std::string& text) {
+    return text.rfind("--", 0) == 0;
+}
+
+bool is_option_allowed(CliCommandKind kind, const std::string& name) {
+    if (kind == CliCommandKind::TOPIC_LIST) {
+        return name == "--config" || name == "--wait-ms";
+    }
+    if (kind == CliCommandKind::TOPIC_ECHO) {
+        return name == "--config" || name == "--type" || name == "--count";
+    }
+    if (kind == CliCommandKind::TOPIC_HZ) {
+        return name == "--config" || name == "--type" || name == "--window" || name == "--count";
+    }
+    return false;
+}
+
+bool read_string_option(const std::string& name, const std::string& value, CliCommand* error) {
+    if (is_option_token(value)) {
+        *error = error_command(name + " requires a value");
+        return false;
+    }
+    return true;
+}
+
 bool apply_option(CliCommand* cmd, const std::string& name, const std::string& value, CliCommand* error) {
+    if (!is_option_allowed(cmd->kind, name)) {
+        *error = error_command("option not allowed for command: " + name);
+        return false;
+    }
+
     if (name == "--config") {
+        if (!read_string_option(name, value, error)) {
+            return false;
+        }
         cmd->config_path = value;
         return true;
     }
     if (name == "--type") {
+        if (!read_string_option(name, value, error)) {
+            return false;
+        }
         cmd->type_name = value;
         return true;
     }
@@ -92,7 +128,7 @@ bool apply_option(CliCommand* cmd, const std::string& name, const std::string& v
 bool parse_options(int argc, char** argv, int start, CliCommand* cmd, CliCommand* error) {
     for (int i = start; i < argc; i += 2) {
         std::string name = argv[i];
-        if (name.rfind("--", 0) != 0) {
+        if (!is_option_token(name)) {
             *error = error_command("unexpected argument: " + name);
             return false;
         }
@@ -115,8 +151,8 @@ std::string cli_usage() {
            "  mm --help\n"
            "  mm topic --help\n"
            "  mm topic list [--config PATH] [--wait-ms MS]\n"
-           "  mm topic echo TOPIC --type TYPE [--config PATH] [--count N] [--wait-ms MS]\n"
-           "  mm topic hz TOPIC --type TYPE [--config PATH] [--window N] [--wait-ms MS]\n";
+           "  mm topic echo TOPIC --type TYPE [--config PATH] [--count N]\n"
+           "  mm topic hz TOPIC --type TYPE [--config PATH] [--window N] [--count N]\n";
 }
 
 CliCommand parse_cli_args(int argc, char** argv) {

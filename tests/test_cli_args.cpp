@@ -52,3 +52,34 @@ TEST(CliArgs, MissingTypeIsUsageError) {
     EXPECT_EQ(cmd.exit_code, 2);
     EXPECT_NE(cmd.message.find("--type"), std::string::npos);
 }
+
+TEST(CliArgs, StringOptionsRejectAnotherOptionAsValue) {
+    auto missing_type_value = parse({"mm", "topic", "echo", "/chatter", "--type", "--config"});
+
+    EXPECT_EQ(missing_type_value.kind, CliCommandKind::ERROR);
+    EXPECT_EQ(missing_type_value.exit_code, 2);
+    EXPECT_NE(missing_type_value.message.find("--type"), std::string::npos);
+    EXPECT_NE(missing_type_value.message.find("requires a value"), std::string::npos);
+
+    auto missing_config_value = parse({"mm", "topic", "list", "--config", "--wait-ms"});
+
+    EXPECT_EQ(missing_config_value.kind, CliCommandKind::ERROR);
+    EXPECT_EQ(missing_config_value.exit_code, 2);
+    EXPECT_NE(missing_config_value.message.find("--config"), std::string::npos);
+    EXPECT_NE(missing_config_value.message.find("requires a value"), std::string::npos);
+}
+
+TEST(CliArgs, RejectsOptionsNotAllowedForCommand) {
+    auto list_with_type = parse({"mm", "topic", "list", "--type", "mm.StringMsg"});
+
+    EXPECT_EQ(list_with_type.kind, CliCommandKind::ERROR);
+    EXPECT_EQ(list_with_type.exit_code, 2);
+    EXPECT_NE(list_with_type.message.find("--type"), std::string::npos);
+
+    auto echo_with_window =
+        parse({"mm", "topic", "echo", "/chatter", "--type", "mm.StringMsg", "--window", "5"});
+
+    EXPECT_EQ(echo_with_window.kind, CliCommandKind::ERROR);
+    EXPECT_EQ(echo_with_window.exit_code, 2);
+    EXPECT_NE(echo_with_window.message.find("--window"), std::string::npos);
+}
