@@ -47,6 +47,8 @@ if(GTest_FOUND)
     add_executable(test_bench_args test_bench_args.cpp)
     target_link_libraries(test_bench_args PRIVATE
         mm_bench_lib
+        mm_core
+        mm_proto
         GTest::gtest_main
     )
     add_test(NAME test_bench_args COMMAND test_bench_args)

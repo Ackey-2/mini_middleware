@@ -1,4 +1,6 @@
 #include "bench/bench_args.h"
+#include "core/shm_limits.h"
+#include "messages.pb.h"
 
 #include <gtest/gtest.h>
 
@@ -99,18 +101,39 @@ TEST(BenchArgs, RejectsInvalidNumber) {
     EXPECT_NE(result.message.find("--payload-bytes must be a positive integer"), std::string::npos);
 }
 
-TEST(BenchArgs, RejectsPayloadThatExceedsShmSlotButAllowsTcp) {
-    auto shm_result =
-        parse({"mm_bench", "--mode", "shm", "--payload-bytes", "262144"});
+TEST(BenchArgs, AcceptsPayloadAtExactShmSerializedBoundary) {
+    constexpr std::size_t kPayloadBytes = 262140;
+    mm::StringMsg message;
+    message.set_data(std::string(kPayloadBytes, 'x'));
 
-    expect_usage_error(shm_result);
-    EXPECT_NE(shm_result.message.find("SHM payload must be at most 262140 bytes"),
+    ASSERT_EQ(message.ByteSizeLong(), mm::kShmSlotCapacity);
+
+    auto result = parse(
+        {"mm_bench", "--mode", "shm", "--payload-bytes", "262140"});
+
+    EXPECT_TRUE(result.ok) << result.message;
+}
+
+TEST(BenchArgs, RejectsPayloadOneByteBeyondShmSerializedBoundary) {
+    constexpr std::size_t kPayloadBytes = 262141;
+    mm::StringMsg message;
+    message.set_data(std::string(kPayloadBytes, 'x'));
+
+    ASSERT_EQ(message.ByteSizeLong(), mm::kShmSlotCapacity + 1u);
+
+    auto result = parse(
+        {"mm_bench", "--mode", "shm", "--payload-bytes", "262141"});
+
+    expect_usage_error(result);
+    EXPECT_NE(result.message.find("serialized benchmark message is 262145 bytes"),
               std::string::npos);
+}
 
-    auto tcp_result =
-        parse({"mm_bench", "--mode", "tcp", "--payload-bytes", "262144"});
+TEST(BenchArgs, AllowsTcpPayloadBeyondShmSerializedBoundary) {
+    auto result = parse(
+        {"mm_bench", "--mode", "tcp", "--payload-bytes", "262141"});
 
-    EXPECT_TRUE(tcp_result.ok) << tcp_result.message;
+    EXPECT_TRUE(result.ok) << result.message;
 }
 
 TEST(BenchArgs, RejectsUnknownOption) {

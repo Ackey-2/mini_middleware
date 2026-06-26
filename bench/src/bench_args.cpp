@@ -1,4 +1,6 @@
 #include "bench/bench_args.h"
+#include "core/shm_limits.h"
+#include "messages.pb.h"
 
 #include <cerrno>
 #include <cstdlib>
@@ -7,9 +9,6 @@
 
 namespace mm::bench {
 namespace {
-
-constexpr std::size_t kShmSlotCapacity = 256 * 1024;
-constexpr std::size_t kMaxShmPayloadBytes = kShmSlotCapacity - 4;
 
 bool is_option_token(const std::string& text) {
     return text.rfind("--", 0) == 0;
@@ -140,13 +139,25 @@ ParseResult parse_bench_args(int argc, char** argv) {
         return error_result("unexpected argument: " + arg);
     }
 
-    if (result.options.mode == BenchMode::SHM &&
-        result.options.payload_bytes > kMaxShmPayloadBytes) {
-        return error_result(
-            "SHM payload must be at most " + std::to_string(kMaxShmPayloadBytes) +
-            " bytes so the serialized message fits the " +
-            std::to_string(kShmSlotCapacity) +
-            "-byte slot; use --mode tcp for larger payloads");
+    if (result.options.mode == BenchMode::SHM) {
+        if (result.options.payload_bytes > kShmSlotCapacity) {
+            return error_result(
+                "SHM payload alone exceeds the " +
+                std::to_string(kShmSlotCapacity) +
+                "-byte slot; use --mode tcp for larger payloads");
+        }
+
+        mm::StringMsg message;
+        message.mutable_data()->resize(result.options.payload_bytes);
+        const auto serialized_size = message.ByteSizeLong();
+        if (serialized_size > kShmSlotCapacity) {
+            return error_result(
+                "serialized benchmark message is " +
+                std::to_string(serialized_size) +
+                " bytes and exceeds the " +
+                std::to_string(kShmSlotCapacity) +
+                "-byte SHM slot; use --mode tcp for larger payloads");
+        }
     }
 
     return result;

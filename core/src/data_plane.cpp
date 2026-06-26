@@ -1,4 +1,5 @@
 #include "core/data_plane.h"
+#include "core/shm_limits.h"
 #include "core/shm_sink.h"
 #include "transport/tcp_server_transport.h"
 #include "transport/tcp_client_transport.h"
@@ -11,7 +12,6 @@ namespace {
 // SHM ring 容量:槽数(2 的幂) × 每槽 payload 上限。
 // 32 槽 × 256KB ≈ 8MB/段,足够多数消息;超 256KB 的消息丢弃(BEST_EFFORT)。
 constexpr uint32_t kShmSlotCount = 32;
-constexpr uint32_t kShmSlotSize = 256 * 1024;
 
 // 与 DiscoveryAgent::match_key 同一公式,保证 match/unmatch 对得上
 std::string match_key(const MatchInfo& m) {
@@ -186,7 +186,8 @@ void DataPlane::shm_pub_match(const MatchInfo& m) {
         return;
     }
     std::string name = seg_name(local_pid_, topic);
-    std::shared_ptr<ShmSegment> seg = ShmSegment::create(name, kShmSlotCount, kShmSlotSize);
+    std::shared_ptr<ShmSegment> seg =
+        ShmSegment::create(name, kShmSlotCount, kShmSlotCapacity);
     if (!seg) {
         LOG_ERROR("data plane: shm create failed for topic={} (no fallback)", topic);
         return;
