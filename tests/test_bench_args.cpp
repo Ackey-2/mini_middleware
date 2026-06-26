@@ -18,6 +18,12 @@ ParseResult parse(std::vector<std::string> args) {
     return parse_bench_args(static_cast<int>(argv.size()), argv.data());
 }
 
+void expect_usage_error(const ParseResult& result) {
+    EXPECT_FALSE(result.ok);
+    EXPECT_EQ(result.exit_code, 2);
+    EXPECT_NE(result.message.find("Usage:"), std::string::npos);
+}
+
 }  // namespace
 
 TEST(BenchArgs, DefaultsToShmDemoRun) {
@@ -61,39 +67,41 @@ TEST(BenchArgs, HelpExitsZero) {
 TEST(BenchArgs, RejectsInvalidMode) {
     auto result = parse({"mm_bench", "--mode", "udp"});
 
-    EXPECT_FALSE(result.ok);
-    EXPECT_EQ(result.exit_code, 2);
+    expect_usage_error(result);
     EXPECT_NE(result.message.find("unsupported mode"), std::string::npos);
 }
 
 TEST(BenchArgs, RejectsMissingOptionValue) {
     auto result = parse({"mm_bench", "--count"});
 
-    EXPECT_FALSE(result.ok);
-    EXPECT_EQ(result.exit_code, 2);
+    expect_usage_error(result);
     EXPECT_NE(result.message.find("--count requires a value"), std::string::npos);
 }
 
 TEST(BenchArgs, RejectsAnotherFlagAsOptionValue) {
     auto result = parse({"mm_bench", "--topic", "--count"});
 
-    EXPECT_FALSE(result.ok);
-    EXPECT_EQ(result.exit_code, 2);
+    expect_usage_error(result);
     EXPECT_NE(result.message.find("--topic requires a value"), std::string::npos);
 }
 
 TEST(BenchArgs, RejectsNonPositiveCount) {
     auto result = parse({"mm_bench", "--count", "0"});
 
-    EXPECT_FALSE(result.ok);
-    EXPECT_EQ(result.exit_code, 2);
+    expect_usage_error(result);
     EXPECT_NE(result.message.find("--count must be positive"), std::string::npos);
 }
 
 TEST(BenchArgs, RejectsInvalidNumber) {
     auto result = parse({"mm_bench", "--payload-bytes", "abc"});
 
-    EXPECT_FALSE(result.ok);
-    EXPECT_EQ(result.exit_code, 2);
+    expect_usage_error(result);
     EXPECT_NE(result.message.find("--payload-bytes must be a positive integer"), std::string::npos);
+}
+
+TEST(BenchArgs, RejectsUnknownOption) {
+    auto result = parse({"mm_bench", "--bogus"});
+
+    expect_usage_error(result);
+    EXPECT_NE(result.message.find("unknown option"), std::string::npos);
 }
