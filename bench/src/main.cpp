@@ -102,6 +102,11 @@ int main(int argc, char** argv) {
         options.payload_bytes = kMinPayloadBytes;
     }
 
+    std::mutex mutex;
+    std::condition_variable cv;
+    std::vector<std::uint64_t> latency_us;
+    latency_us.reserve(options.count);
+
     const bool enable_shm = options.mode == mm::bench::BenchMode::SHM;
     mm::Node subscriber_node("mm_bench_subscriber", enable_shm);
     mm::Node publisher_node("mm_bench_publisher", enable_shm);
@@ -109,11 +114,6 @@ int main(int argc, char** argv) {
                                            std::chrono::milliseconds(5000));
     publisher_node.discovery().set_timing(std::chrono::milliseconds(80),
                                           std::chrono::milliseconds(5000));
-
-    std::mutex mutex;
-    std::condition_variable cv;
-    std::vector<std::uint64_t> latency_us;
-    latency_us.reserve(options.count);
 
     const auto qos = benchmark_qos();
     auto subscriber = subscriber_node.create_subscriber<mm::StringMsg>(
