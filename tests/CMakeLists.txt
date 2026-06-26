@@ -44,6 +44,13 @@ if(GTest_FOUND)
     )
     add_test(NAME test_cli_args COMMAND test_cli_args)
 
+    add_executable(test_bench_args test_bench_args.cpp)
+    target_link_libraries(test_bench_args PRIVATE
+        mm_bench_lib
+        GTest::gtest_main
+    )
+    add_test(NAME test_bench_args COMMAND test_bench_args)
+
     add_executable(test_message_format test_message_format.cpp)
     target_link_libraries(test_message_format PRIVATE
         mm_cli_lib

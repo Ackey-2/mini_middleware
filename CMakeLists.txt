@@ -39,6 +39,7 @@ add_subdirectory(discovery)            # 发现层
 add_subdirectory(core)                 # Pub/Sub/Node
 add_subdirectory(cli)                  # 命令行工具
 add_subdirectory(examples)             # 示例程序
+add_subdirectory(bench)                # benchmark 工具
 enable_testing()   
 add_subdirectory(tests)              # 测试,等有 gtest 再开
 
