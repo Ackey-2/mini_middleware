@@ -99,6 +99,20 @@ TEST(BenchArgs, RejectsInvalidNumber) {
     EXPECT_NE(result.message.find("--payload-bytes must be a positive integer"), std::string::npos);
 }
 
+TEST(BenchArgs, RejectsPayloadThatExceedsShmSlotButAllowsTcp) {
+    auto shm_result =
+        parse({"mm_bench", "--mode", "shm", "--payload-bytes", "262144"});
+
+    expect_usage_error(shm_result);
+    EXPECT_NE(shm_result.message.find("SHM payload must be at most 262140 bytes"),
+              std::string::npos);
+
+    auto tcp_result =
+        parse({"mm_bench", "--mode", "tcp", "--payload-bytes", "262144"});
+
+    EXPECT_TRUE(tcp_result.ok) << tcp_result.message;
+}
+
 TEST(BenchArgs, RejectsUnknownOption) {
     auto result = parse({"mm_bench", "--bogus"});
 

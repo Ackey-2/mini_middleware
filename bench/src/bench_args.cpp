@@ -8,6 +8,9 @@
 namespace mm::bench {
 namespace {
 
+constexpr std::size_t kShmSlotCapacity = 256 * 1024;
+constexpr std::size_t kMaxShmPayloadBytes = kShmSlotCapacity - 4;
+
 bool is_option_token(const std::string& text) {
     return text.rfind("--", 0) == 0;
 }
@@ -135,6 +138,15 @@ ParseResult parse_bench_args(int argc, char** argv) {
             return error_result("unknown option: " + arg);
         }
         return error_result("unexpected argument: " + arg);
+    }
+
+    if (result.options.mode == BenchMode::SHM &&
+        result.options.payload_bytes > kMaxShmPayloadBytes) {
+        return error_result(
+            "SHM payload must be at most " + std::to_string(kMaxShmPayloadBytes) +
+            " bytes so the serialized message fits the " +
+            std::to_string(kShmSlotCapacity) +
+            "-byte slot; use --mode tcp for larger payloads");
     }
 
     return result;
