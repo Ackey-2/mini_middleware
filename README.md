@@ -107,10 +107,10 @@ Automated benchmark tests cover argument parsing and statistics calculations. Ex
 
 ```bash
 # Same-host shared-memory route
-build/bench/mm_bench --mode shm --count 10000 --payload-bytes 256 --topic /bench
+build/bench/mm_bench --mode shm --count 1000 --payload-bytes 256 --topic /bench
 
 # Forced same-host TCP route
-build/bench/mm_bench --mode tcp --count 10000 --payload-bytes 256 --topic /bench
+build/bench/mm_bench --mode tcp --count 1000 --payload-bytes 256 --topic /bench
 
 build/bench/mm_bench --help
 ```
@@ -122,7 +122,7 @@ SHM messages must fit the 256 KiB serialized slot. A run that times out or recei
 These are real 1,000-message smoke runs from a Debug build under WSL on 2026-06-27. They demonstrate the report format and successful completion, not a portable performance claim; host load, virtualization, build type, and payload size change the results.
 
 ```text
-$ build/bench/mm_bench --mode shm --count 1000 --payload-bytes 256
+$ build/bench/mm_bench --mode shm --count 1000 --payload-bytes 256 --topic /bench
 mode: shm
 messages: 1000
 payload_bytes: 256
@@ -134,7 +134,7 @@ latency_us_p50: 126
 latency_us_p95: 177
 latency_us_p99: 447
 
-$ build/bench/mm_bench --mode tcp --count 1000 --payload-bytes 256
+$ build/bench/mm_bench --mode tcp --count 1000 --payload-bytes 256 --topic /bench
 mode: tcp
 messages: 1000
 payload_bytes: 256
@@ -169,7 +169,7 @@ latency_us_p99: 2274
 
 - Linux/x86-64 is the tested target: the transport uses `epoll`, POSIX SHM, and requires lock-free 64-bit atomics.
 - The route logic recognizes different hosts, but `Node` currently advertises `127.0.0.1`; cross-host end-to-end use needs a configurable/non-loopback advertised address and has not been demonstrated here.
-- SHM is best-effort only, has 32 slots and a 256 KiB serialized-message ceiling, and does not fall back to TCP if segment creation fails. It avoids the socket path but is not end-to-end zero-copy: Protobuf serialization and ring/subscriber copies remain.
+- SHM is best-effort only, has 32 slots and a 256 KiB serialized-message ceiling, and does not fall back to TCP if segment creation fails. High publish pressure may overwrite unread slots and drop messages. It avoids the socket path but is not end-to-end zero-copy: Protobuf serialization and ring/subscriber copies remain.
 - TCP has no reconnect/backoff or application-level retransmission; sends attempted before an asynchronous connection is ready can fail.
 - Discovery is LAN multicast with no persistence, partitions/rejoin protocol, authentication, authorization, or encryption.
 - The configuration reader supports only the shown YAML shape. CLI message formatting is compiled for three Protobuf types, and parsed QoS config is not yet wired into CLI-created subscribers.
