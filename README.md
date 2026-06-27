@@ -1,6 +1,6 @@
 # mini_middleware
 
-mini_middleware is a DDS-style, brokerless C++17 robotics middleware project that combines typed Protobuf Pub/Sub and RPC with UDP discovery, shared-memory and TCP transports, QoS, CLI inspection, and a reproducible benchmark.
+mini_middleware is a DDS-style, brokerless C++17 robotics middleware project that combines typed Protobuf Pub/Sub and RPC with UDP discovery, shared-memory and TCP transports, QoS, CLI inspection, and a repeatable controlled-window demo benchmark.
 
 ## Architecture
 
@@ -50,7 +50,7 @@ cmake --build build -j"$(nproc)"
 (cd build && ctest --output-on-failure)
 ```
 
-The final command should report `100% tests passed, 0 tests failed out of 41`. Tests are registered only when CMake finds GoogleTest, which is why `libgtest-dev` is included above.
+The final command should report `100% tests passed, 0 tests failed out of 42`. Tests are registered only when CMake finds GoogleTest, which is why `libgtest-dev` is included above.
 
 ## Minimal Pub/Sub Demo
 
@@ -101,9 +101,9 @@ build/cli/mm topic list --config demo.yaml --wait-ms 1500
 
 ## Benchmark
 
-`mm_bench` creates publisher and subscriber nodes in one process, waits for normal discovery/routing, sends timestamped `mm.StringMsg` messages, and reports completed-message throughput and end-to-end callback latency. `--mode tcp` disables SHM so the loopback TCP path is exercised.
+`mm_bench` creates publisher and subscriber nodes in one process, waits for normal discovery/routing, sends run-identified and sequenced `mm.StringMsg` messages, and reports completed-message throughput and end-to-end callback latency. Both modes use the same 16-message in-flight window; this is a controlled-window comparison for a repeatable demo, not a peak-throughput or load test. `--mode tcp` disables SHM so the loopback TCP path is exercised.
 
-Automated benchmark tests cover argument parsing and statistics calculations. Executable end-to-end behavior is verified by running the SHM and TCP smoke commands below, which exercise discovery, routing, delivery, and completion checks.
+Automated benchmark tests cover argument parsing, actual serialized transport boundaries, statistics, run isolation, duplicate/range rejection, and flow-control calculations. Executable end-to-end behavior is verified by repeated SHM and TCP smoke runs rather than a timing-sensitive CTest; the commands below exercise discovery, routing, delivery, and completion checks.
 
 ```bash
 # Same-host shared-memory route
@@ -115,7 +115,7 @@ build/bench/mm_bench --mode tcp --count 1000 --payload-bytes 256 --topic /bench
 build/bench/mm_bench --help
 ```
 
-SHM messages must fit the 256 KiB serialized slot. A run that times out or receives fewer messages exits nonzero.
+`--count` is limited to 100,000 for this demo. SHM messages must fit the 256 KiB serialized slot. TCP validates the serialized `StringMsg` inside its `DataMessage` topic envelope against the 16 MiB `FrameCodec` payload limit. Invalid sizes/counts exit `2` before nodes start; a run that times out or receives fewer messages exits nonzero.
 
 ### Representative Output (Example Only)
 
@@ -127,24 +127,24 @@ mode: shm
 messages: 1000
 payload_bytes: 256
 received: 1000
-duration_ms: 9.12
-throughput_msg_s: 109661.15
-latency_us_avg: 133.31
-latency_us_p50: 126
-latency_us_p95: 177
-latency_us_p99: 447
+duration_ms: 8.52
+throughput_msg_s: 117343.35
+latency_us_avg: 121.27
+latency_us_p50: 110
+latency_us_p95: 159
+latency_us_p99: 816
 
 $ build/bench/mm_bench --mode tcp --count 1000 --payload-bytes 256 --topic /bench
 mode: tcp
 messages: 1000
 payload_bytes: 256
 received: 1000
-duration_ms: 53.10
-throughput_msg_s: 18830.97
-latency_us_avg: 1043.13
-latency_us_p50: 853
-latency_us_p95: 2070
-latency_us_p99: 2274
+duration_ms: 667.30
+throughput_msg_s: 1498.57
+latency_us_avg: 11163.09
+latency_us_p50: 157
+latency_us_p95: 43604
+latency_us_p99: 43888
 ```
 
 ## 3-5 Minute Interview Walkthrough
@@ -161,8 +161,8 @@ latency_us_p99: 2274
 - **Control/data-plane split:** UDP multicast makes discovery brokerless and simple for a LAN demo; periodic announcements and a five-second default liveliness timeout remove dead peers.
 - **QoS affects compatibility and routing:** a reliable reader does not match a best-effort writer; same-host best-effort uses SHM, while reliable traffic uses TCP.
 - **SHM favors nonblocking writer progress and bounded ring memory over guaranteed delivery:** writes do not wait for readers, and the fixed-size ring may overwrite old data. Per-reader cursors and sequence rechecks count overruns and reject torn copies.
-- **TCP favors portability of message size and ordered delivery:** nonblocking `epoll` transports use framed Protobuf envelopes and reuse a connection per peer, at the cost of socket and copy overhead.
-- **Failures are explicit:** malformed announcements/data are dropped, type/QoS mismatches do not match, RPC calls time out, handler exceptions become error replies, oversized SHM benchmark payloads are rejected, and incomplete benchmarks exit nonzero.
+- **TCP favors larger bounded messages and ordered delivery:** nonblocking `epoll` transports use framed Protobuf envelopes capped at 16 MiB and reuse a connection per peer, at the cost of socket and copy overhead.
+- **Failures are explicit:** malformed announcements/data are dropped, type/QoS mismatches do not match, RPC calls time out, handler exceptions become error replies, oversized SHM/TCP benchmark payloads and excessive counts are rejected, and incomplete benchmarks exit nonzero.
 - **Lifecycle ordering matters:** subscriber workers, discovery, SHM readers, outbound connections, and TCP servers are stopped/joined in an order that prevents callbacks into destroyed state.
 
 ## Current Limitations
@@ -173,5 +173,5 @@ latency_us_p99: 2274
 - TCP has no reconnect/backoff or application-level retransmission; sends attempted before an asynchronous connection is ready can fail.
 - Discovery is LAN multicast with no persistence, partitions/rejoin protocol, authentication, authorization, or encryption.
 - The configuration reader supports only the shown YAML shape. CLI message formatting is compiled for three Protobuf types, and parsed QoS config is not yet wired into CLI-created subscribers.
-- The benchmark is demo-grade: two nodes in one process, Debug by default, no warm-up, CPU pinning, allocation accounting, CSV export, cross-machine orchestration, or statistical confidence analysis.
+- The benchmark is demo-grade: two nodes in one process, a shared 16-message in-flight window, Debug by default, no warm-up, CPU pinning, allocation accounting, CSV export, cross-machine orchestration, peak-throughput/load methodology, or statistical confidence analysis.
 - There is no packaging, install target, CI pipeline, or compatibility guarantee yet.

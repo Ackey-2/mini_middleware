@@ -60,6 +60,13 @@ if(GTest_FOUND)
     )
     add_test(NAME test_bench_stats COMMAND test_bench_stats)
 
+    add_executable(test_bench_message_codec test_bench_message_codec.cpp)
+    target_link_libraries(test_bench_message_codec PRIVATE
+        mm_bench_lib
+        GTest::gtest_main
+    )
+    add_test(NAME test_bench_message_codec COMMAND test_bench_message_codec)
+
     add_executable(test_message_format test_message_format.cpp)
     target_link_libraries(test_message_format PRIVATE
         mm_cli_lib

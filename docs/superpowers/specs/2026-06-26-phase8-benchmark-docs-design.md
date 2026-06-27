@@ -36,7 +36,7 @@ Supported options:
 | Option | Default | Meaning |
 |---|---:|---|
 | `--mode shm|tcp` | `shm` | `shm` enables SHM on the node; `tcp` disables SHM to force the same-host TCP path. |
-| `--count N` | `10000` | Number of messages to publish and wait for. |
+| `--count N` | `10000` | Number of messages to publish and wait for, from 1 through 100,000. |
 | `--payload-bytes N` | `256` | Size of the string payload in each message. |
 | `--topic NAME` | `/bench` | Topic used by the benchmark. |
 | `--help` | - | Print usage and exit zero. |
@@ -45,7 +45,7 @@ The command creates a publisher node and a subscriber node in the same process. 
 
 ## 3. Measured Metrics
 
-Each message carries a send timestamp and a string payload. The subscriber records receive timestamps and stores one latency sample per received message.
+Each message carries a per-run identifier, sequence, send timestamp, and string payload. The subscriber ignores other run identifiers and rejects malformed, duplicate, and out-of-range sequences, storing exactly one latency sample per expected sequence.
 
 Output format:
 
@@ -75,9 +75,12 @@ The numbers are demo-grade, not publication-grade. The README will state that re
 | `bench/src/bench_args.cpp` | Parse and validate command-line options. |
 | `bench/include/bench/stats.h` | Define `LatencyStats` and calculation APIs. |
 | `bench/src/stats.cpp` | Compute average, percentiles, duration, and throughput. |
+| `bench/include/bench/message_codec.h` | Define benchmark payload encoding, decoding, sample admission, and controlled-window helpers. |
+| `bench/src/message_codec.cpp` | Implement run-isolated payload handling and actual Protobuf serialized-size calculations. |
 | `bench/src/main.cpp` | Run the publisher/subscriber benchmark and print metrics. |
 | `tests/test_bench_args.cpp` | Cover valid options, defaults, help, and invalid values. |
 | `tests/test_bench_stats.cpp` | Cover average, percentile, throughput, empty samples, and single-sample cases. |
+| `tests/test_bench_message_codec.cpp` | Cover run isolation, duplicate/range rejection, payload growth, and the shared in-flight window. |
 | `README.md` | Replace early scaffold text with current architecture, features, build, CLI, benchmark, and interview notes. |
 | `docs/superpowers/specs/2026-06-15-mini-middleware-roadmap.md` | Mark Phase 8 complete after implementation. |
 
@@ -96,24 +99,28 @@ flowchart LR
     H --> I["Stats report"]
 ```
 
-The benchmark should wait briefly after creating endpoints so discovery and route setup can settle. It should then publish messages as fast as the API allows, while the subscriber records arrival time. A condition variable waits until all messages arrive or a timeout expires.
+The benchmark should wait briefly after creating endpoints so discovery and route setup can settle. It should then use the same 16-message in-flight window for SHM and TCP, waiting for accepted sequences to advance before publishing beyond that window. This controlled-window policy makes the two demo runs repeatable and prevents an unbounded burst from overrunning BEST_EFFORT SHM; it is not a peak-throughput or load test. A condition variable waits until all messages arrive or the shared deadline expires, and a failed flow-control wait stops publication immediately.
 
 Payload format:
 
 ```text
-<sequence>|<send_steady_clock_nanoseconds>|<padding>
+<run_id>|<sequence>|<send_steady_clock_nanoseconds>|<padding>
 ```
 
-The parser only needs to extract the sequence and timestamp prefix. Padding is deterministic and sized to reach `payload_bytes`.
+The parser extracts and validates the run identifier, sequence, and timestamp prefix. Padding is deterministic and sized to reach `payload_bytes`; if the requested size cannot hold the metadata, the effective size grows and is the value reported.
 
 ## 6. Error Handling
 
 - Unknown option: print usage and exit `2`.
 - Invalid mode: print supported modes and exit `2`.
 - Non-positive `--count`: print an error and exit `2`.
+- `--count` above the documented 100,000-message demo maximum: print an error and exit `2` before allocating sample storage.
 - `--payload-bytes` too small to contain metadata: automatically grow payload to the minimum required size and report the effective size.
+- SHM payload whose serialized `StringMsg` exceeds the actual slot capacity: print an error and exit `2`.
+- TCP payload whose serialized `StringMsg` inside the actual `DataMessage` topic envelope exceeds `FrameCodec::MAX_PAYLOAD_SIZE`: print an error and exit `2` before startup.
 - Timeout before all messages arrive: print partial metrics and exit `1`.
 - Serialization or publish failure: print the failing sequence and exit `1`.
+- Flow-control deadline failure: print the sequence plus received/required context, stop publishing, and exit `1`.
 
 ## 7. README Shape
 
@@ -134,8 +141,9 @@ The README should use plain Markdown and Mermaid only. It should not depend on e
 ## 8. Testing and Verification
 
 Automated tests:
-- `test_bench_args`: default parse, explicit TCP/SHM modes, count and payload parsing, help, missing values, invalid numeric values.
+- `test_bench_args`: default parse, explicit TCP/SHM modes, count and payload parsing, help, missing values, invalid numeric values, the count maximum, and exact SHM/TCP serialized boundaries.
 - `test_bench_stats`: empty sample behavior, single sample, multiple samples, percentile ordering, throughput calculation.
+- `test_bench_message_codec`: run identifier parsing/filtering, duplicate and sequence-range rejection, effective payload growth, and the 16-message flow-control target.
 - Existing full suite remains green.
 
 Manual verification:
@@ -152,4 +160,4 @@ The benchmark commands should print all metrics and exit zero on a normal local 
 
 ## 9. Scope Boundary
 
-Phase 8 is the project presentation phase, not a new transport phase. The implementation should favor a clear, repeatable, easy-to-explain demo over maximum benchmark sophistication. If deeper performance work is needed later, it should become a separate phase with CSV output, pinned processes, cross-machine runs, and more rigorous methodology.
+Phase 8 is the project presentation phase, not a new transport phase. The implementation should favor a clear, repeatable, easy-to-explain controlled-window demo over maximum benchmark sophistication. Its completed-message throughput is not a peak-throughput or load-testing claim. If deeper performance work is needed later, it should become a separate phase with CSV output, pinned processes, cross-machine runs, and more rigorous methodology.

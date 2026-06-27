@@ -1,4 +1,5 @@
 #include "bench/bench_args.h"
+#include "bench/message_codec.h"
 #include "bench/stats.h"
 #include "core/node.h"
 #include "messages.pb.h"
@@ -7,10 +8,11 @@
 #include <condition_variable>
 #include <cstddef>
 #include <cstdint>
-#include <cstdlib>
 #include <iomanip>
 #include <iostream>
+#include <memory>
 #include <mutex>
+#include <random>
 #include <string>
 #include <thread>
 #include <vector>
@@ -18,9 +20,6 @@
 namespace {
 
 using Clock = std::chrono::steady_clock;
-
-constexpr std::size_t kMinPayloadBytes = 32;
-constexpr std::size_t kShmInFlightWindow = 16;
 
 std::uint64_t steady_nanoseconds() {
     return static_cast<std::uint64_t>(
@@ -35,35 +34,21 @@ mm::Qos benchmark_qos() {
     return qos;
 }
 
-std::string make_payload(std::size_t sequence, std::size_t payload_bytes) {
-    std::string prefix =
-        std::to_string(sequence) + "|" + std::to_string(steady_nanoseconds()) + "|";
-    if (prefix.size() < payload_bytes) {
-        prefix.append(payload_bytes - prefix.size(), 'x');
-    }
-    return prefix;
+std::string make_run_id() {
+    std::random_device random;
+    return std::to_string(steady_nanoseconds()) + "-" +
+           std::to_string(random()) + "-" + std::to_string(random());
 }
 
-bool parse_send_time(const std::string& payload, std::uint64_t* send_ns) {
-    const auto first_sep = payload.find('|');
-    if (first_sep == std::string::npos) {
-        return false;
-    }
-    const auto second_sep = payload.find('|', first_sep + 1);
-    if (second_sep == std::string::npos || second_sep == first_sep + 1) {
-        return false;
-    }
+struct CallbackState {
+    CallbackState(std::string run_id, std::size_t expected_count)
+        : collector(std::move(run_id), expected_count) {}
 
-    const auto timestamp_text =
-        payload.substr(first_sep + 1, second_sep - first_sep - 1);
-    char* end = nullptr;
-    const auto value = std::strtoull(timestamp_text.c_str(), &end, 10);
-    if (end == timestamp_text.c_str() || *end != '\0') {
-        return false;
-    }
-    *send_ns = static_cast<std::uint64_t>(value);
-    return true;
-}
+    std::mutex mutex;
+    std::condition_variable cv;
+    mm::bench::BenchmarkSampleCollector collector;
+    bool accepting = true;
+};
 
 void print_report(const mm::bench::BenchOptions& options,
                   std::size_t received,
@@ -95,17 +80,17 @@ int main(int argc, char** argv) {
     }
 
     auto options = parsed.options;
-    if (options.payload_bytes < kMinPayloadBytes) {
+    const auto run_id = make_run_id();
+    const auto minimum_payload =
+        mm::bench::minimum_benchmark_payload_bytes(run_id, options.count);
+    if (options.payload_bytes < minimum_payload) {
         std::cerr << "payload_bytes " << options.payload_bytes
                   << " is below the minimum metadata length; using "
-                  << kMinPayloadBytes << "\n";
-        options.payload_bytes = kMinPayloadBytes;
+                  << minimum_payload << "\n";
+        options.payload_bytes = minimum_payload;
     }
 
-    std::mutex mutex;
-    std::condition_variable cv;
-    std::vector<std::uint64_t> latency_us;
-    latency_us.reserve(options.count);
+    auto state = std::make_shared<CallbackState>(run_id, options.count);
 
     const bool enable_shm = options.mode == mm::bench::BenchMode::SHM;
     mm::Node subscriber_node("mm_bench_subscriber", enable_shm);
@@ -118,21 +103,16 @@ int main(int argc, char** argv) {
     const auto qos = benchmark_qos();
     auto subscriber = subscriber_node.create_subscriber<mm::StringMsg>(
         options.topic,
-        [&](const mm::StringMsg& msg) {
-            std::uint64_t send_ns = 0;
-            if (!parse_send_time(msg.data(), &send_ns)) {
-                return;
-            }
+        [state](const mm::StringMsg& msg) {
             const auto now_ns = steady_nanoseconds();
-            const auto sample_us =
-                now_ns >= send_ns ? (now_ns - send_ns) / 1000 : 0;
+            bool accepted = false;
             {
-                std::lock_guard<std::mutex> lock(mutex);
-                if (latency_us.size() < options.count) {
-                    latency_us.push_back(sample_us);
+                std::lock_guard<std::mutex> lock(state->mutex);
+                if (state->accepting) {
+                    accepted = state->collector.record(msg.data(), now_ns);
                 }
             }
-            cv.notify_all();
+            if (accepted) state->cv.notify_all();
         },
         qos);
 
@@ -146,35 +126,50 @@ int main(int argc, char** argv) {
 
     bool publish_failed = false;
     for (std::size_t i = 0; i < options.count; ++i) {
+        if (Clock::now() >= deadline) {
+            std::cerr << "publish deadline reached before sequence " << i << "\n";
+            publish_failed = true;
+            break;
+        }
+
         mm::StringMsg msg;
-        msg.set_data(make_payload(i, options.payload_bytes));
+        msg.set_data(mm::bench::make_benchmark_payload(
+            run_id, i, steady_nanoseconds(), options.payload_bytes));
         if (!publisher->publish(msg)) {
             std::cerr << "publish failed at sequence " << i << "\n";
             publish_failed = true;
             break;
         }
 
-        if (enable_shm && i + 1 > kShmInFlightWindow) {
-            const auto target_received = i + 1 - kShmInFlightWindow;
-            std::unique_lock<std::mutex> lock(mutex);
-            cv.wait_until(lock, deadline, [&] {
-                return latency_us.size() >= target_received;
+        const auto target_received = mm::bench::flow_control_target(i + 1);
+        if (target_received > 0) {
+            std::unique_lock<std::mutex> lock(state->mutex);
+            const bool advanced = state->cv.wait_until(lock, deadline, [&] {
+                return state->collector.received_count() >= target_received;
             });
+            if (!advanced) {
+                std::cerr << "flow-control wait timed out after sequence " << i
+                          << ": received " << state->collector.received_count()
+                          << ", required " << target_received << "\n";
+                publish_failed = true;
+                break;
+            }
         }
     }
 
     {
-        std::unique_lock<std::mutex> lock(mutex);
-        cv.wait_until(lock, deadline, [&] {
-            return latency_us.size() >= options.count;
+        std::unique_lock<std::mutex> lock(state->mutex);
+        state->cv.wait_until(lock, deadline, [&] {
+            return state->collector.received_count() >= options.count;
         });
     }
 
     const auto finished = Clock::now();
     std::vector<std::uint64_t> samples;
     {
-        std::lock_guard<std::mutex> lock(mutex);
-        samples = latency_us;
+        std::lock_guard<std::mutex> lock(state->mutex);
+        state->accepting = false;
+        samples = state->collector.samples();
     }
 
     const auto duration =

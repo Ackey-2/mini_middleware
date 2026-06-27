@@ -5,6 +5,8 @@
 
 namespace mm::bench {
 
+constexpr std::size_t kMaxBenchmarkCount = 100000;
+
 enum class BenchMode { SHM, TCP };
 
 struct BenchOptions {

@@ -1,6 +1,8 @@
 #include "bench/bench_args.h"
 #include "core/shm_limits.h"
+#include "data.pb.h"
 #include "messages.pb.h"
+#include "transport/frame_codec.h"
 
 #include <gtest/gtest.h>
 
@@ -24,6 +26,34 @@ void expect_usage_error(const ParseResult& result) {
     EXPECT_FALSE(result.ok);
     EXPECT_EQ(result.exit_code, 2);
     EXPECT_NE(result.message.find("Usage:"), std::string::npos);
+}
+
+std::size_t tcp_frame_payload_size(std::size_t payload_bytes,
+                                   const std::string& topic = "/bench") {
+    mm::StringMsg message;
+    message.mutable_data()->resize(payload_bytes);
+    std::string serialized_message;
+    EXPECT_TRUE(message.SerializeToString(&serialized_message));
+
+    mm::DataMessage envelope;
+    envelope.set_topic(topic);
+    envelope.set_payload(serialized_message);
+    return envelope.ByteSizeLong();
+}
+
+std::size_t largest_tcp_payload(const std::string& topic = "/bench") {
+    std::size_t low = 1;
+    std::size_t high = mm::FrameCodec::MAX_PAYLOAD_SIZE;
+    while (low < high) {
+        const auto mid = low + (high - low + 1) / 2;
+        if (tcp_frame_payload_size(mid, topic) <=
+            mm::FrameCodec::MAX_PAYLOAD_SIZE) {
+            low = mid;
+        } else {
+            high = mid - 1;
+        }
+    }
+    return low;
 }
 
 }  // namespace
@@ -94,6 +124,23 @@ TEST(BenchArgs, RejectsNonPositiveCount) {
     EXPECT_NE(result.message.find("--count must be positive"), std::string::npos);
 }
 
+TEST(BenchArgs, AcceptsCountAtDemoMaximum) {
+    auto result = parse({"mm_bench", "--count",
+                         std::to_string(kMaxBenchmarkCount)});
+
+    EXPECT_TRUE(result.ok) << result.message;
+}
+
+TEST(BenchArgs, RejectsCountAboveDemoMaximum) {
+    auto result = parse({"mm_bench", "--count",
+                         std::to_string(kMaxBenchmarkCount + 1)});
+
+    expect_usage_error(result);
+    EXPECT_NE(result.message.find("--count must not exceed"), std::string::npos);
+    EXPECT_NE(result.message.find(std::to_string(kMaxBenchmarkCount)),
+              std::string::npos);
+}
+
 TEST(BenchArgs, RejectsInvalidNumber) {
     auto result = parse({"mm_bench", "--payload-bytes", "abc"});
 
@@ -134,6 +181,39 @@ TEST(BenchArgs, AllowsTcpPayloadBeyondShmSerializedBoundary) {
         {"mm_bench", "--mode", "tcp", "--payload-bytes", "262141"});
 
     EXPECT_TRUE(result.ok) << result.message;
+}
+
+TEST(BenchArgs, AcceptsPayloadAtExactTcpFrameBoundary) {
+    const auto payload_bytes = largest_tcp_payload();
+    ASSERT_EQ(tcp_frame_payload_size(payload_bytes),
+              mm::FrameCodec::MAX_PAYLOAD_SIZE);
+
+    auto result = parse({"mm_bench", "--mode", "tcp", "--payload-bytes",
+                         std::to_string(payload_bytes)});
+
+    EXPECT_TRUE(result.ok) << result.message;
+}
+
+TEST(BenchArgs, RejectsPayloadOneByteBeyondTcpFrameBoundary) {
+    const auto payload_bytes = largest_tcp_payload();
+    ASSERT_GT(tcp_frame_payload_size(payload_bytes + 1),
+              mm::FrameCodec::MAX_PAYLOAD_SIZE);
+
+    auto result = parse({"mm_bench", "--mode", "tcp", "--payload-bytes",
+                         std::to_string(payload_bytes + 1)});
+
+    expect_usage_error(result);
+    EXPECT_NE(result.message.find("TCP frame payload"), std::string::npos);
+    EXPECT_NE(result.message.find(std::to_string(mm::FrameCodec::MAX_PAYLOAD_SIZE)),
+              std::string::npos);
+}
+
+TEST(BenchArgs, RejectsExtremeTcpPayloadWithoutAllocationFailure) {
+    auto result = parse({"mm_bench", "--mode", "tcp", "--payload-bytes",
+                         "18446744073709551615"});
+
+    expect_usage_error(result);
+    EXPECT_NE(result.message.find("TCP frame payload"), std::string::npos);
 }
 
 TEST(BenchArgs, RejectsUnknownOption) {

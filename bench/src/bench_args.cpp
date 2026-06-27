@@ -1,6 +1,7 @@
 #include "bench/bench_args.h"
+#include "bench/message_codec.h"
 #include "core/shm_limits.h"
-#include "messages.pb.h"
+#include "transport/frame_codec.h"
 
 #include <cerrno>
 #include <cstdlib>
@@ -64,7 +65,10 @@ bool parse_positive_size(const std::string& text, std::size_t* out) {
 std::string bench_usage() {
     return "Usage:\n"
            "  mm_bench [--mode shm|tcp] [--count N] [--payload-bytes N] [--topic NAME]\n"
-           "  mm_bench --help\n";
+           "  mm_bench --help\n"
+           "\n"
+           "--count N must be between 1 and " +
+           std::to_string(kMaxBenchmarkCount) + ".\n";
 }
 
 const char* mode_name(BenchMode mode) {
@@ -110,6 +114,12 @@ ParseResult parse_bench_args(int argc, char** argv) {
             if (!parse_positive_size(value, &result.options.count)) {
                 return error_result("--count must be positive");
             }
+            if (result.options.count > kMaxBenchmarkCount) {
+                return error_result(
+                    "--count must not exceed " +
+                    std::to_string(kMaxBenchmarkCount) +
+                    " for this demo benchmark");
+            }
             ++i;
             continue;
         }
@@ -147,9 +157,8 @@ ParseResult parse_bench_args(int argc, char** argv) {
                 "-byte slot; use --mode tcp for larger payloads");
         }
 
-        mm::StringMsg message;
-        message.mutable_data()->resize(result.options.payload_bytes);
-        const auto serialized_size = message.ByteSizeLong();
+        const auto serialized_size =
+            serialized_string_message_size(result.options.payload_bytes);
         if (serialized_size > kShmSlotCapacity) {
             return error_result(
                 "serialized benchmark message is " +
@@ -157,6 +166,24 @@ ParseResult parse_bench_args(int argc, char** argv) {
                 " bytes and exceeds the " +
                 std::to_string(kShmSlotCapacity) +
                 "-byte SHM slot; use --mode tcp for larger payloads");
+        }
+    } else {
+        if (result.options.payload_bytes > mm::FrameCodec::MAX_PAYLOAD_SIZE) {
+            return error_result(
+                "TCP frame payload exceeds the " +
+                std::to_string(mm::FrameCodec::MAX_PAYLOAD_SIZE) +
+                "-byte FrameCodec limit");
+        }
+
+        const auto frame_payload_size =
+            tcp_frame_payload_size(result.options.topic,
+                                   result.options.payload_bytes);
+        if (frame_payload_size > mm::FrameCodec::MAX_PAYLOAD_SIZE) {
+            return error_result(
+                "TCP frame payload is " + std::to_string(frame_payload_size) +
+                " bytes and exceeds the " +
+                std::to_string(mm::FrameCodec::MAX_PAYLOAD_SIZE) +
+                "-byte FrameCodec limit");
         }
     }
 

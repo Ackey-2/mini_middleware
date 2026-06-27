@@ -1,5 +1,6 @@
 add_library(mm_bench_lib STATIC
     src/bench_args.cpp
+    src/message_codec.cpp
     src/stats.cpp
 )
 
