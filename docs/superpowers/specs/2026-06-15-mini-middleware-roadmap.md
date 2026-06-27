@@ -58,7 +58,7 @@
 | 5 | QoS | RELIABLE/BEST_EFFORT、KEEP_LAST N 历史、队列深度、发现期 QoS 协商 | ~500 | 7.1k | ✅ |
 | 6 | Service/RPC | 请求-响应、服务发现、client/server 桩 | ~700 | 7.8k | ✅ |
 | 7 | CLI 工具 + 配置 | `mm topic list/echo/hz`、YAML 配置加载 | ~900 | 8.7k | ✅ |
-| 8 | Benchmark + 测试 + 文档 | TCP vs SHM 延迟/吞吐对比、单测/集成测试、README + 架构图 | ~1200 | 9.9k | |
+| 8 | Benchmark + 测试 + 文档 | TCP vs SHM 延迟/吞吐对比、单测/集成测试、README + 架构图 | ~1200 | 9.9k | ✅ |
 
 **8000 行约落在 Phase 6 结束处。** Phase 7–8 是可裁剪/可压缩缓冲区；做到 Phase 5（QoS）即为完整的 DDS-lite。
 
