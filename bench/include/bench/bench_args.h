@@ -12,6 +12,7 @@ enum class BenchMode { SHM, TCP };
 struct BenchOptions {
     BenchMode mode = BenchMode::SHM;
     std::size_t count = 10000;
+    std::size_t requested_payload_bytes = 256;
     std::size_t payload_bytes = 256;
     std::string topic = "/bench";
 };

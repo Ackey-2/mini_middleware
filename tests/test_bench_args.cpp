@@ -1,4 +1,5 @@
 #include "bench/bench_args.h"
+#include "bench/message_codec.h"
 #include "core/shm_limits.h"
 #include "data.pb.h"
 #include "messages.pb.h"
@@ -206,6 +207,21 @@ TEST(BenchArgs, RejectsPayloadOneByteBeyondTcpFrameBoundary) {
     EXPECT_NE(result.message.find("TCP frame payload"), std::string::npos);
     EXPECT_NE(result.message.find(std::to_string(mm::FrameCodec::MAX_PAYLOAD_SIZE)),
               std::string::npos);
+}
+
+TEST(BenchArgs, RejectsTcpTopicEnvelopeThatCannotFitBenchmarkMetadata) {
+    const std::string topic(mm::FrameCodec::MAX_PAYLOAD_SIZE - 20, 't');
+    ASSERT_LE(tcp_frame_payload_size(1, topic),
+              mm::FrameCodec::MAX_PAYLOAD_SIZE);
+    ASSERT_GT(tcp_frame_payload_size(
+                  minimum_benchmark_payload_bytes("run-id", 1), topic),
+              mm::FrameCodec::MAX_PAYLOAD_SIZE);
+
+    auto result = parse({"mm_bench", "--mode", "tcp", "--payload-bytes", "1",
+                         "--topic", topic});
+
+    expect_usage_error(result);
+    EXPECT_NE(result.message.find("TCP frame payload"), std::string::npos);
 }
 
 TEST(BenchArgs, RejectsExtremeTcpPayloadWithoutAllocationFailure) {

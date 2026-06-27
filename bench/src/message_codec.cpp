@@ -3,12 +3,16 @@
 #include "data.pb.h"
 #include "messages.pb.h"
 
+#include <algorithm>
 #include <charconv>
 #include <limits>
 #include <utility>
 
 namespace mm::bench {
 namespace {
+
+constexpr std::size_t kMaxBenchmarkRunIdBytes =
+    3 * (std::numeric_limits<std::uint64_t>::digits10 + 1) + 2;
 
 template <typename UInt>
 bool parse_unsigned(const std::string& text, UInt* value) {
@@ -62,6 +66,13 @@ std::size_t minimum_benchmark_payload_bytes(const std::string& run_id,
     return make_benchmark_payload(run_id, max_sequence,
                                   std::numeric_limits<std::uint64_t>::max(), 0)
         .size();
+}
+
+std::size_t effective_benchmark_payload_bytes(
+    std::size_t requested_payload_bytes, std::size_t count) {
+    const auto metadata_bytes = minimum_benchmark_payload_bytes(
+        std::string(kMaxBenchmarkRunIdBytes, '0'), count);
+    return std::max(requested_payload_bytes, metadata_bytes);
 }
 
 std::size_t serialized_string_message_size(std::size_t payload_bytes) {

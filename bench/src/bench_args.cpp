@@ -149,6 +149,10 @@ ParseResult parse_bench_args(int argc, char** argv) {
         return error_result("unexpected argument: " + arg);
     }
 
+    result.options.requested_payload_bytes = result.options.payload_bytes;
+    result.options.payload_bytes = effective_benchmark_payload_bytes(
+        result.options.requested_payload_bytes, result.options.count);
+
     if (result.options.mode == BenchMode::SHM) {
         if (result.options.payload_bytes > kShmSlotCapacity) {
             return error_result(

@@ -80,15 +80,12 @@ int main(int argc, char** argv) {
     }
 
     auto options = parsed.options;
-    const auto run_id = make_run_id();
-    const auto minimum_payload =
-        mm::bench::minimum_benchmark_payload_bytes(run_id, options.count);
-    if (options.payload_bytes < minimum_payload) {
-        std::cerr << "payload_bytes " << options.payload_bytes
+    if (options.requested_payload_bytes < options.payload_bytes) {
+        std::cerr << "payload_bytes " << options.requested_payload_bytes
                   << " is below the minimum metadata length; using "
-                  << minimum_payload << "\n";
-        options.payload_bytes = minimum_payload;
+                  << options.payload_bytes << "\n";
     }
+    const auto run_id = make_run_id();
 
     auto state = std::make_shared<CallbackState>(run_id, options.count);
 

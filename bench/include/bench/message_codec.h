@@ -30,6 +30,8 @@ std::optional<BenchmarkMessageMetadata> parse_benchmark_payload(
     const std::string& payload);
 std::size_t minimum_benchmark_payload_bytes(const std::string& run_id,
                                             std::size_t count);
+std::size_t effective_benchmark_payload_bytes(std::size_t requested_payload_bytes,
+                                              std::size_t count);
 std::size_t serialized_string_message_size(std::size_t payload_bytes);
 std::size_t tcp_frame_payload_size(const std::string& topic,
                                    std::size_t payload_bytes);

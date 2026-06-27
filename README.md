@@ -103,7 +103,7 @@ build/cli/mm topic list --config demo.yaml --wait-ms 1500
 
 `mm_bench` creates publisher and subscriber nodes in one process, waits for normal discovery/routing, sends run-identified and sequenced `mm.StringMsg` messages, and reports completed-message throughput and end-to-end callback latency. Both modes use the same 16-message in-flight window; this is a controlled-window comparison for a repeatable demo, not a peak-throughput or load test. `--mode tcp` disables SHM so the loopback TCP path is exercised.
 
-Automated benchmark tests cover argument parsing, actual serialized transport boundaries, statistics, run isolation, duplicate/range rejection, and flow-control calculations. Executable end-to-end behavior is verified by repeated SHM and TCP smoke runs rather than a timing-sensitive CTest; the commands below exercise discovery, routing, delivery, and completion checks.
+Automated benchmark tests cover argument parsing, actual serialized transport boundaries, statistics, run isolation, duplicate/range rejection, and flow-control calculations. Executable end-to-end behavior is verified by one SHM and one TCP smoke run rather than a timing-sensitive CTest; the commands below exercise discovery, routing, delivery, and completion checks.
 
 ```bash
 # Same-host shared-memory route
