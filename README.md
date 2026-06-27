@@ -11,15 +11,16 @@ flowchart LR
     API --> DISC["DiscoveryAgent<br/>control plane"]
     DISC <-->|"UDP multicast announcements<br/>topic + type + QoS matching"| PEER["Peer DiscoveryAgent"]
     PEER -->|"match / unmatch"| BUS
-    BUS --> ROUTE{"Matched data route"}
+    BUS -->|"direct in-process fan-out"| DELIVERY
+    BUS -->|"matched inter-process sink"| ROUTE{"Inter-process data route"}
     ROUTE -->|"same host + BEST_EFFORT"| SHM["POSIX SHM<br/>SPMC lock-free ring"]
     ROUTE -->|"SHM disabled, RELIABLE,<br/>or different host"| TCP["TCP fallback / cross-host path<br/>epoll + length-prefixed frames"]
-    SHM --> INBOUND["Inbound LocalBus"]
+    SHM --> INBOUND["Peer LocalBus inbound"]
     TCP --> INBOUND
     INBOUND --> DELIVERY["Subscriber queue<br/>worker-thread callback delivery"]
 ```
 
-Discovery is the control plane: participants periodically announce endpoints and remove timed-out peers. After a compatible match, the data plane routes same-host best-effort traffic through SHM and other traffic through TCP. The current cross-host limitation is called out [below](#current-limitations).
+Discovery is the control plane: participants periodically announce endpoints and remove timed-out peers. A publication fans out directly to in-process subscribers; after a compatible inter-process match, the data plane additionally routes same-host best-effort traffic through SHM and other traffic through TCP. The current cross-host limitation is called out [below](#current-limitations).
 
 ## Implemented Scope
 
@@ -32,7 +33,7 @@ Discovery is the control plane: participants periodically announce endpoints and
 | 5 - QoS | `BEST_EFFORT` / `RELIABLE` requested-vs-offered matching plus local `KEEP_LAST` / `KEEP_ALL` subscriber history and depth. Reliable readers route through TCP. |
 | 6 - RPC | Typed client/service APIs built over Pub/Sub, request IDs, per-client reply topics, bounded client waits, and handler/serialization error replies. |
 | 7 - CLI/config | `mm topic list`, `echo`, and `hz`; built-in formatting for `mm.StringMsg`, `mm.Point3D`, and `mm.PointCloud`; a small YAML configuration subset. |
-| 8 - Evidence | `mm_bench` SHM/TCP modes, latency/throughput statistics, argument validation, and a 41-test unit/integration suite. |
+| 8 - Evidence | `mm_bench` SHM/TCP modes, latency/throughput statistics, argument validation, and a full unit/integration suite. |
 
 The detailed progression is in the [roadmap](docs/superpowers/specs/2026-06-15-mini-middleware-roadmap.md); each phase also has a design and implementation plan under [`docs/superpowers`](docs/superpowers/).
 
@@ -102,6 +103,8 @@ build/cli/mm topic list --config demo.yaml --wait-ms 1500
 
 `mm_bench` creates publisher and subscriber nodes in one process, waits for normal discovery/routing, sends timestamped `mm.StringMsg` messages, and reports completed-message throughput and end-to-end callback latency. `--mode tcp` disables SHM so the loopback TCP path is exercised.
 
+Automated benchmark tests cover argument parsing and statistics calculations. Executable end-to-end behavior is verified by running the SHM and TCP smoke commands below, which exercise discovery, routing, delivery, and completion checks.
+
 ```bash
 # Same-host shared-memory route
 build/bench/mm_bench --mode shm --count 10000 --payload-bytes 256 --topic /bench
@@ -147,7 +150,7 @@ latency_us_p99: 2274
 ## 3-5 Minute Interview Walkthrough
 
 1. **0:00-0:45 - Frame the system.** Use the diagram to separate decentralized discovery/control from P2P delivery and explain the route decision.
-2. **0:45-1:30 - Establish correctness.** Run `(cd build && ctest --output-on-failure)` and point out the transport, discovery, QoS, RPC, CLI, and benchmark coverage in the 41 tests.
+2. **0:45-1:30 - Establish correctness.** Run `(cd build && ctest --output-on-failure)` and point out the transport, discovery, QoS, RPC, CLI, and benchmark coverage in the full test suite.
 3. **1:30-2:30 - Show live Pub/Sub.** Run the CLI `topic echo` and the `/chatter` publisher in two terminals; optionally show `topic list` or `topic hz`.
 4. **2:30-3:30 - Show evidence.** Run the 1,000-message SHM and TCP benchmark commands and compare routes, received counts, and report fields without treating one run as a universal result.
 5. **3:30-5:00 - Open the design.** Walk through `Node` match callbacks, `DataPlane::use_shm`, the SHM sequence protocol, and one handled failure; close with the limitations below.
@@ -157,7 +160,7 @@ latency_us_p99: 2274
 - **One endpoint API, multiple transports:** `LocalBus` fans out to local subscribers and transport-backed sinks, so discovery can add/remove routes without changing `Publisher<T>`.
 - **Control/data-plane split:** UDP multicast makes discovery brokerless and simple for a LAN demo; periodic announcements and a five-second default liveliness timeout remove dead peers.
 - **QoS affects compatibility and routing:** a reliable reader does not match a best-effort writer; same-host best-effort uses SHM, while reliable traffic uses TCP.
-- **SHM favors bounded latency over guaranteed delivery:** the writer never blocks and may overwrite old data. Per-reader cursors and sequence rechecks count overruns and reject torn copies.
+- **SHM favors nonblocking writer progress and bounded ring memory over guaranteed delivery:** writes do not wait for readers, and the fixed-size ring may overwrite old data. Per-reader cursors and sequence rechecks count overruns and reject torn copies.
 - **TCP favors portability of message size and ordered delivery:** nonblocking `epoll` transports use framed Protobuf envelopes and reuse a connection per peer, at the cost of socket and copy overhead.
 - **Failures are explicit:** malformed announcements/data are dropped, type/QoS mismatches do not match, RPC calls time out, handler exceptions become error replies, oversized SHM benchmark payloads are rejected, and incomplete benchmarks exit nonzero.
 - **Lifecycle ordering matters:** subscriber workers, discovery, SHM readers, outbound connections, and TCP servers are stopped/joined in an order that prevents callbacks into destroyed state.
